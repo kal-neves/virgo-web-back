@@ -1,7 +1,9 @@
 package br.gov.agu.virgo_back;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
 
-import br.gov.agu.virgo_back.client.ClientConsultarProcesso;
-import br.gov.agu.virgo_back.entities.User;
+import br.gov.agu.virgo_back.pje.PjeSoapClient;
+import br.gov.agu.virgo_back.pje.CredenciaisPje;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,10 +14,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 @SpringBootTest
-class ConsultarProcessoTest {
+class EndpointRequestTest {
 
     @Autowired
-    private ClientConsultarProcesso client;
+    private PjeSoapClient client;
 
     @Value("${pje1}")
     private String PJE1;
@@ -30,11 +32,11 @@ class ConsultarProcessoTest {
         String senha = System.getenv("TESTE_SENHA");
         String numProcesso = System.getenv("TESTE_PROCESSO");
 
-        User user = new User();
+        CredenciaisPje user = new CredenciaisPje();
         user.setLogin(login);
         user.setSenha(senha);
 
-        String response;
+        Document response;
         try {
             response = client.enviarRequest(
                     PJE1,
@@ -42,15 +44,15 @@ class ConsultarProcessoTest {
                     numProcesso
             );
 
-            System.out.println(response);
+            System.out.println(response.getDocumentElement().getTextContent());
 
-            if (response.contains("<sucesso>false</sucesso>")) {
+            if (processoNaoEncontrado(response)) {
                 response = client.enviarRequest(
                         PJE2,
                         user,
                         numProcesso
                 );
-                System.out.println(response);
+                System.out.println(response.getDocumentElement().getTextContent());
             }
 
         } catch (WebServiceIOException e) {
@@ -60,8 +62,15 @@ class ConsultarProcessoTest {
                     numProcesso
             );
 
-            System.out.println(response);
-            assertFalse(response.contains("<sucesso>false</sucesso>"));
+            System.out.println(response.getDocumentElement().getTextContent());
         }
+
+        assertFalse(processoNaoEncontrado(response));
+    }
+
+    private boolean processoNaoEncontrado(Document response) {
+        NodeList sucesso = response.getElementsByTagName("sucesso");
+        return sucesso.getLength() > 0
+                && "false".equals(sucesso.item(0).getTextContent());
     }
 }

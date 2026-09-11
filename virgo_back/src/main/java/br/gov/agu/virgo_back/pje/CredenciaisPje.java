@@ -1,4 +1,4 @@
-package br.gov.agu.virgo_back.entities;
+package br.gov.agu.virgo_back.pje;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class CredenciaisPje {
 
     @NotBlank
     private String senha;

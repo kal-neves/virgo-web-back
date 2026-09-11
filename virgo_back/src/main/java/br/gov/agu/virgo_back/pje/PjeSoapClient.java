@@ -1,48 +1,50 @@
-package br.gov.agu.virgo_back.client;
+package br.gov.agu.virgo_back.pje;
 
-import br.gov.agu.virgo_back.entities.User;
 import org.springframework.stereotype.Component;
 import org.springframework.ws.client.core.WebServiceTemplate;
 import org.springframework.xml.transform.StringSource;
+import org.w3c.dom.Document;
 
-import javax.xml.transform.stream.StreamResult;
-import java.io.StringWriter;
+import javax.xml.transform.dom.DOMResult;
 
 @Component
-public class ClientConsultarProcesso {
+public class PjeSoapClient {
 
     private final WebServiceTemplate webServiceTemplate;
 
-    public ClientConsultarProcesso(WebServiceTemplate webServiceTemplate) {
+    public PjeSoapClient(WebServiceTemplate webServiceTemplate) {
         this.webServiceTemplate = webServiceTemplate;
     }
 
-    public String enviarRequest(String uri, User user, String numProcesso) {
+    public Document enviarRequest(String uri, CredenciaisPje user, String numProcesso) {
 
-        StringSource request = new StringSource(gerarRequest(user, numProcesso));
-        StringWriter response = new StringWriter();
+        StringSource request = new StringSource(
+                gerarRequest(user, numProcesso)
+        );
+
+        DOMResult response = new DOMResult();
 
         webServiceTemplate.sendSourceAndReceiveToResult(
                 uri,
                 request,
-                new StreamResult(response)
+                response
         );
 
-        return response.toString();
+        return (Document) response.getNode();
     }
 
-    private String gerarRequest(User user, String numProcesso) {
+    private String gerarRequest(CredenciaisPje user, String numProcesso) {
         return """
                 <ser:consultarProcesso
                     xmlns:ser="http://www.cnj.jus.br/servico-intercomunicacao-2.2.2/"
                     xmlns:tip="http://www.cnj.jus.br/tipos-servico-intercomunicacao-2.2.2">
-                
+
                     <tip:idConsultante>%s</tip:idConsultante>
                     <tip:senhaConsultante>%s</tip:senhaConsultante>
                     <tip:numeroProcesso>%s</tip:numeroProcesso>
                     <!--Optional:-->
                     <tip:movimentos>true</tip:movimentos>
-                
+
                 </ser:consultarProcesso>
                 """.formatted(
                 user.getLogin(),
