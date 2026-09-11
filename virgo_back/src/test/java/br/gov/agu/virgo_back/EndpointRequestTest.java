@@ -38,7 +38,7 @@ class EndpointRequestTest {
 
         Document response;
         try {
-            response = client.enviarRequest(
+            response = client.consultarProcesso(
                     PJE1,
                     user,
                     numProcesso
@@ -47,7 +47,7 @@ class EndpointRequestTest {
             System.out.println(response.getDocumentElement().getTextContent());
 
             if (processoNaoEncontrado(response)) {
-                response = client.enviarRequest(
+                response = client.consultarProcesso(
                         PJE2,
                         user,
                         numProcesso
@@ -56,7 +56,7 @@ class EndpointRequestTest {
             }
 
         } catch (WebServiceIOException e) {
-            response = client.enviarRequest(
+            response = client.consultarProcesso(
                     PJE2,
                     user,
                     numProcesso
