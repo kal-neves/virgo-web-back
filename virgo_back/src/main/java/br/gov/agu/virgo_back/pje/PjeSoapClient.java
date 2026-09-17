@@ -1,8 +1,11 @@
 package br.gov.agu.virgo_back.pje;
 
+import br.gov.agu.virgo_back.processo.application.ConsultarProcessoGateway;
 import br.gov.agu.virgo_back.processo.domain.OrigemPje;
 import br.gov.agu.virgo_back.processo.domain.StatusConsulta;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.ws.client.WebServiceIOException;
 import org.springframework.ws.client.core.WebServiceTemplate;
 import org.springframework.xml.transform.StringSource;
 import org.w3c.dom.Document;
@@ -22,7 +25,7 @@ import br.gov.agu.virgo_back.processo.domain.Movimentacao;
 
 
 @Component
-public class PjeSoapClient {
+public class PjeSoapClient implements ConsultarProcessoGateway {
 
     private static final String SERVICO_NAMESPACE =
             "http://www.cnj.jus.br/servico-intercomunicacao-2.2.2/";
@@ -31,13 +34,25 @@ public class PjeSoapClient {
 
     private final WebServiceTemplate webServiceTemplate;
     private final XMLOutputFactory xmlOutputFactory;
+    private final String pje1;
+    private final String pje2;
 
-    public PjeSoapClient(WebServiceTemplate webServiceTemplate) {
+    public PjeSoapClient(WebServiceTemplate webServiceTemplate,
+                         @Value("${pje1}") String pje1,
+                         @Value("${pje2}") String pje2) {
         this.webServiceTemplate = webServiceTemplate;
         this.xmlOutputFactory = XMLOutputFactory.newFactory();
+        this.pje1 = pje1;
+        this.pje2 = pje2;
     }
 
-    public Document consultarProcesso(String uri, CredenciaisPje credenciais, String numProcesso) {
+    @Override
+    public RespostaConsultaOrigem consultarProcesso(OrigemPje origem, CredenciaisPje credenciais, String numProcesso) {
+
+        String uri = switch (origem) {
+            case PJE1 -> pje1;
+            case PJE2 -> pje2;
+        };
 
         StringSource request = new StringSource(
                 gerarRequest(credenciais, numProcesso)
@@ -45,13 +60,28 @@ public class PjeSoapClient {
 
         DOMResult response = new DOMResult();
 
-        webServiceTemplate.sendSourceAndReceiveToResult(
-                uri,
-                request,
-                response
-        );
+        try {
+            boolean recebeuResposta = webServiceTemplate.sendSourceAndReceiveToResult(
+                    uri, request, response
+            );
 
-        return (Document) response.getNode();
+            if (!recebeuResposta || !(response.getNode() instanceof Document documento)) {
+                return new RespostaConsultaOrigem(
+                        origem,
+                        StatusConsulta.RESPOSTA_INVALIDA,
+                        List.of(),
+                        "PJe não retornou documento de resposta");
+            }
+
+            return mapearResposta(documento, origem);
+
+        } catch (WebServiceIOException e) {
+            return new RespostaConsultaOrigem(
+                    origem,
+                    StatusConsulta.INDISPONIVEL,
+                    List.of(),
+                    "Falha de comunicação com PJe");
+        }
     }
 
     private String gerarRequest(CredenciaisPje user, String numProcesso) {
