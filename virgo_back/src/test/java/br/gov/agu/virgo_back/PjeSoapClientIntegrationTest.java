@@ -3,6 +3,7 @@ package br.gov.agu.virgo_back;
 import br.gov.agu.virgo_back.pje.CredenciaisPje;
 import br.gov.agu.virgo_back.pje.PjeSoapClient;
 import br.gov.agu.virgo_back.processo.domain.Movimentacao;
+import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import br.gov.agu.virgo_back.processo.domain.OrigemPje;
 import br.gov.agu.virgo_back.processo.domain.RespostaConsultaOrigem;
 import br.gov.agu.virgo_back.processo.domain.StatusConsulta;
@@ -49,7 +50,7 @@ class PjeSoapClientIntegrationTest {
         credenciais.setSenha(System.getenv("TESTE_SENHA"));
 
         RespostaConsultaOrigem resposta = client.consultarProcesso(
-                origem, credenciais, System.getenv("TESTE_PROCESSO").trim()
+                origem, credenciais, new NumeroProcesso(System.getenv("TESTE_PROCESSO"))
         );
 
         assertNotNull(resposta, "O cliente deve retornar resposta tipada");
@@ -63,9 +64,8 @@ class PjeSoapClientIntegrationTest {
 
         for (Movimentacao movimentacao : resposta.movimentacoes()) {
             assertNotNull(movimentacao);
-            assertNotNull(movimentacao.dataHora());
-            assertFalse(movimentacao.dataHora().isBlank(),
-                    "A data/hora da movimentação deve ser extraída do XML");
+            assertNotNull(movimentacao.dataHora(),
+                    "A data/hora da movimentação deve ser convertida do XML para LocalDateTime");
             assertNotNull(movimentacao.descricao());
             assertFalse(movimentacao.descricao().isBlank(),
                     "A descrição da movimentação deve ser extraída do XML");

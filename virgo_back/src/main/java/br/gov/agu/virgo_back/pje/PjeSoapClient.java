@@ -1,6 +1,7 @@
 package br.gov.agu.virgo_back.pje;
 
 import br.gov.agu.virgo_back.processo.application.ConsultarProcessoGateway;
+import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import br.gov.agu.virgo_back.processo.domain.OrigemPje;
 import br.gov.agu.virgo_back.processo.domain.StatusConsulta;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +18,9 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.StringWriter;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +35,9 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
             "http://www.cnj.jus.br/servico-intercomunicacao-2.2.2/";
     private static final String TIPOS_NAMESPACE =
             "http://www.cnj.jus.br/tipos-servico-intercomunicacao-2.2.2";
+
+    private static final DateTimeFormatter DATA_HORA_PJE = DateTimeFormatter.ofPattern("uuuuMMddHHmmss")
+            .withResolverStyle(ResolverStyle.STRICT);
 
     private final WebServiceTemplate webServiceTemplate;
     private final XMLOutputFactory xmlOutputFactory;
@@ -47,7 +54,7 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
     }
 
     @Override
-    public RespostaConsultaOrigem consultarProcesso(OrigemPje origem, CredenciaisPje credenciais, String numProcesso) {
+    public RespostaConsultaOrigem consultarProcesso(OrigemPje origem, CredenciaisPje credenciais, NumeroProcesso numProcesso) {
 
         String uri = switch (origem) {
             case PJE1 -> pje1;
@@ -84,7 +91,7 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
         }
     }
 
-    private String gerarRequest(CredenciaisPje user, String numProcesso) {
+    private String gerarRequest(CredenciaisPje user, NumeroProcesso numProcesso) {
         try {
             StringWriter payload = new StringWriter();
             XMLStreamWriter xml = xmlOutputFactory.createXMLStreamWriter(payload);
@@ -102,7 +109,7 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
             xml.writeEndElement();
 
             xml.writeStartElement("tip", "numeroProcesso", TIPOS_NAMESPACE);
-            xml.writeCharacters(numProcesso);
+            xml.writeCharacters(numProcesso.valor());
             xml.writeEndElement();
 
             xml.writeStartElement("tip", "movimentos", TIPOS_NAMESPACE);
@@ -147,8 +154,13 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
         for (int i = 0; i < elementos.getLength(); i++) {
             Element movimento = (Element) elementos.item(i);
 
+            LocalDateTime dataHora = LocalDateTime.parse(
+                    movimento.getAttribute("datahora"),
+                    DATA_HORA_PJE
+            );
+
             movimentacoes.add(new Movimentacao(
-                    movimento.getAttribute("dataHora"),
+                    dataHora,
                     movimento.getTextContent().trim()
             ));
         }

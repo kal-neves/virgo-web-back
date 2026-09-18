@@ -1,4 +1,6 @@
 package br.gov.agu.virgo_back.processo.domain;
 
-public record Movimentacao (String dataHora, String descricao) {
+import java.time.LocalDateTime;
+
+public record Movimentacao (LocalDateTime dataHora, String descricao) {
 }
