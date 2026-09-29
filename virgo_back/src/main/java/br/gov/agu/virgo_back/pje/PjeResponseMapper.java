@@ -11,6 +11,7 @@ import org.w3c.dom.NodeList;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +36,18 @@ public class PjeResponseMapper {
                     "Resposta não tem campo sucesso");
         }
 
-        boolean sucesso = Boolean.parseBoolean(sucessos.item(0).getTextContent().trim());
+        String valorSucesso = sucessos.item(0).getTextContent().trim();
+
+        if (!valorSucesso.equals("true") && !valorSucesso.equals("false")) {
+            return new RespostaConsultaOrigem(
+                    origem,
+                    StatusConsulta.RESPOSTA_INVALIDA,
+                    List.of(),
+                    "Campo 'sucesso' inválido"
+            );
+        }
+
+        boolean sucesso = valorSucesso.equals("true");
 
         String mensagem = mensagens.getLength() > 0 ? mensagens.item(0).getTextContent().trim() : "";
 
@@ -50,15 +62,24 @@ public class PjeResponseMapper {
         for (int i = 0; i < elementos.getLength(); i++) {
             Element movimento = (Element) elementos.item(i);
 
-            LocalDateTime dataHora = LocalDateTime.parse(
-                    movimento.getAttribute("datahora"),
-                    DATA_HORA_PJE
-            );
+            try {
+                LocalDateTime dataHora = LocalDateTime.parse(
+                        movimento.getAttribute("dataHora"),
+                        DATA_HORA_PJE
+                );
 
-            movimentacoes.add(new Movimentacao(
-                    dataHora,
-                    movimento.getTextContent().trim()
-            ));
+                movimentacoes.add(new Movimentacao(
+                        dataHora,
+                        movimento.getTextContent().trim()
+                ));
+            } catch (DateTimeParseException e) {
+                return new RespostaConsultaOrigem(
+                        origem,
+                        StatusConsulta.RESPOSTA_INVALIDA,
+                        List.of(),
+                        "Movimentação contém data/hora ausente ou inválida"
+                );
+            }
         }
 
         return new RespostaConsultaOrigem(origem,
@@ -81,6 +102,13 @@ public class PjeResponseMapper {
                     StatusConsulta.ACESSO_NEGADO,
                     List.of(),
                     "Falha de autenticação no PJE");
+        }
+
+        if (mensagem.matches(".*Processo de número .+ não encontrado!.*")) {
+            return new RespostaConsultaOrigem(origem,
+                    StatusConsulta.NAO_ENCONTRADO,
+                    List.of(),
+                    mensagem);
         }
 
         return new RespostaConsultaOrigem(origem,
