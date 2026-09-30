@@ -1,0 +1,41 @@
+# Testes do backend
+
+Os pacotes espelham o código de produção:
+
+- `consulta/domain`: janela e exibição por data capturada, sem relógio do sistema.
+- `consulta/application`: consulta aos dois graus numa nova consulta, com gateway local.
+- `processo/domain`: normalização e rejeição de números CNJ.
+- `pje`: writer, mapper, transporte simulado e integração real opt-in.
+- `VirgoBackApplicationTests`: carregamento do contexto Spring.
+
+Os testes locais verificam resultados observáveis: campos XML, fronteiras de data,
+classificação de falhas e preservação dos resultados de cada grau. Não verificam
+métodos privados, formatação exata do XML ou texto exato dos erros produzidos pelo
+VIRGO. As fixtures XML são sintéticas; sua origem está em `resources/pje/README.md`.
+
+Execute a suíte local a partir do módulo `virgo_back`:
+
+```powershell
+.\mvnw.cmd '-DexcludedGroups=pje-live' test
+```
+
+Se houver classes compiladas antigas após mover/renomear testes, execute `clean test`
+com a mesma exclusão. A integração real está em `pje/PjeSoapClientIntegrationTest`
+e exige **todas** as variáveis `PJE_LIVE_TEST=true`, `TESTE_LOGIN`, `TESTE_SENHA`
+e `TESTE_PROCESSO`. `TESTE_ORIGEM` aceita `TRF1PJE1` (padrão) ou `TRF1PJE2`;
+os aliases anteriores `PJE1` e `PJE2` continuam aceitos.
+
+Com essas variáveis definidas no ambiente autorizado:
+
+```powershell
+.\mvnw.cmd '-Dtest=PjeSoapClientIntegrationTest' test
+```
+
+Esse teste faz uma consulta real à origem escolhida. Use um processo acessível com
+movimentações; uma lista vazia pode ser válida no produto, mas não exercita o
+mapeamento desse teste. Não grave credenciais nem respostas reais nas fixtures.
+
+Mudanças de pacote exigem ajustar imports; mudanças de contrato exigem atualizar
+casos de aceitação. Estes testes evitam detalhes internos, mas não são imunes a
+evoluções legítimas do produto. Continuação de rodadas, persistência e descoberta
+de tribunal ainda não estão implementadas e não são simuladas como funcionalidades prontas.
