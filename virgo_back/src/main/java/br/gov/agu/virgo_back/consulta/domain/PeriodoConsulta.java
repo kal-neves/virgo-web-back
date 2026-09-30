@@ -1,4 +1,4 @@
-package br.gov.agu.virgo_back.processo.domain;
+package br.gov.agu.virgo_back.consulta.domain;
 
 import java.time.LocalDate;
 import java.util.Objects;

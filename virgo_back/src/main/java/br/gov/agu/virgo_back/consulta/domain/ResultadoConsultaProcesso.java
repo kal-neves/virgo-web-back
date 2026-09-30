@@ -1,4 +1,6 @@
-package br.gov.agu.virgo_back.processo.domain;
+package br.gov.agu.virgo_back.consulta.domain;
+
+import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 
 import java.util.List;
 import java.util.Objects;

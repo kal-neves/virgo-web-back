@@ -1,9 +1,9 @@
 package br.gov.agu.virgo_back.pje;
 
-import br.gov.agu.virgo_back.processo.application.ConsultarProcessoGateway;
+import br.gov.agu.virgo_back.consulta.application.ConsultarProcessoGateway;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
-import br.gov.agu.virgo_back.processo.domain.OrigemPje;
-import br.gov.agu.virgo_back.processo.domain.StatusConsulta;
+import br.gov.agu.virgo_back.consulta.domain.OrigemPje;
+import br.gov.agu.virgo_back.consulta.domain.StatusConsulta;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.ws.client.WebServiceIOException;
@@ -14,7 +14,7 @@ import org.w3c.dom.Document;
 import javax.xml.transform.dom.DOMResult;
 import java.util.List;
 
-import br.gov.agu.virgo_back.processo.domain.RespostaConsultaOrigem;
+import br.gov.agu.virgo_back.consulta.domain.RespostaConsultaOrigem;
 
 
 @Component
@@ -42,8 +42,8 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
     public RespostaConsultaOrigem consultarProcesso(OrigemPje origem, CredenciaisPje credenciais, NumeroProcesso numProcesso) {
 
         String uri = switch (origem) {
-            case PJE1 -> pje1;
-            case PJE2 -> pje2;
+            case TRF1PJE1 -> pje1;
+            case TRF1PJE2 -> pje2;
         };
 
         StringSource request = new StringSource(

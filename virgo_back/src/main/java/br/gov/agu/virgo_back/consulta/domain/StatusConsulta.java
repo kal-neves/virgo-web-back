@@ -1,4 +1,4 @@
-package br.gov.agu.virgo_back.processo.domain;
+package br.gov.agu.virgo_back.consulta.domain;
 
 public enum StatusConsulta {
     ENCONTRADO,
