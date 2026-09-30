@@ -9,6 +9,8 @@ import org.springframework.ws.client.WebServiceIOException;
 import org.springframework.ws.client.core.WebServiceTemplate;
 import javax.xml.transform.Source;
 import javax.xml.transform.dom.DOMResult;
+import java.net.URI;
+import java.time.Duration;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -16,7 +18,10 @@ import static org.mockito.Mockito.*;
 class PjeSoapClientTest {
     private final WebServiceTemplate transporte = mock(WebServiceTemplate.class);
     private final PjeSoapClient cliente = new PjeSoapClient(transporte, new PjeRequestWriter(),
-            new PjeResponseMapper(), "https://primeiro.invalid/soap", "https://segundo.invalid/soap");
+            new PjeResponseMapper(), new PjeProperties(new PjeProperties.Endpoints(
+                    URI.create("https://primeiro.invalid/soap"), URI.create("https://segundo.invalid/soap"),
+                    URI.create("https://trf6-primeiro.invalid/soap"), URI.create("https://trf6-segundo.invalid/soap")),
+                    Duration.ofSeconds(5), Duration.ofSeconds(30)));
 
     @ParameterizedTest
     @EnumSource(OrigemPje.class)

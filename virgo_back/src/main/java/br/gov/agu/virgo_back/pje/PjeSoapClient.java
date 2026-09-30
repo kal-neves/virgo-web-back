@@ -4,7 +4,6 @@ import br.gov.agu.virgo_back.consulta.application.ConsultarProcessoGateway;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import br.gov.agu.virgo_back.consulta.domain.OrigemPje;
 import br.gov.agu.virgo_back.consulta.domain.StatusConsulta;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.ws.client.WebServiceIOException;
 import org.springframework.ws.client.core.WebServiceTemplate;
@@ -29,13 +28,12 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
     public PjeSoapClient(WebServiceTemplate webServiceTemplate,
                          PjeRequestWriter requestWriter,
                          PjeResponseMapper responseMapper,
-                         @Value("${trf1pje1}") String pje1,
-                         @Value("${trf1pje2}") String pje2) {
+                         PjeProperties properties) {
         this.webServiceTemplate = webServiceTemplate;
         this.requestWriter = requestWriter;
         this.responseMapper = responseMapper;
-        this.pje1 = pje1;
-        this.pje2 = pje2;
+        this.pje1 = properties.endpoints().trf1PrimeiroGrau().toString();
+        this.pje2 = properties.endpoints().trf1SegundoGrau().toString();
     }
 
     @Override
