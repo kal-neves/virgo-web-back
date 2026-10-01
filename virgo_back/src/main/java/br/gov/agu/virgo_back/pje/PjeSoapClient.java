@@ -22,27 +22,22 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
     private final WebServiceTemplate webServiceTemplate;
     private final PjeRequestWriter requestWriter;
     private final PjeResponseMapper responseMapper;
-    private final String pje1;
-    private final String pje2;
+    private final ResolverEndpointPje resolverEndpoint;
 
     public PjeSoapClient(WebServiceTemplate webServiceTemplate,
                          PjeRequestWriter requestWriter,
                          PjeResponseMapper responseMapper,
-                         PjeProperties properties) {
+                         ResolverEndpointPje resolverEndpoint) {
         this.webServiceTemplate = webServiceTemplate;
         this.requestWriter = requestWriter;
         this.responseMapper = responseMapper;
-        this.pje1 = properties.endpoints().trf1PrimeiroGrau().toString();
-        this.pje2 = properties.endpoints().trf1SegundoGrau().toString();
+        this.resolverEndpoint = resolverEndpoint;
     }
 
     @Override
     public RespostaConsultaOrigem consultarProcesso(OrigemPje origem, CredenciaisPje credenciais, NumeroProcesso numProcesso) {
 
-        String uri = switch (origem) {
-            case TRF1PJE1 -> pje1;
-            case TRF1PJE2 -> pje2;
-        };
+        String uri = resolverEndpoint.resolver(origem).toString();
 
         StringSource request = new StringSource(
                 requestWriter.gerarRequest(credenciais, numProcesso)

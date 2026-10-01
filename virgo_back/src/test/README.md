@@ -22,7 +22,7 @@ Execute a suíte local a partir do módulo `virgo_back`:
 Se houver classes compiladas antigas após mover/renomear testes, execute `clean test`
 com a mesma exclusão. A integração real está em `pje/PjeSoapClientIntegrationTest`
 e exige **todas** as variáveis `PJE_LIVE_TEST=true`, `TESTE_LOGIN`, `TESTE_SENHA`
-e `TESTE_PROCESSO`. `TESTE_ORIGEM` aceita `TRF1PJE1` (padrão) ou `TRF1PJE2`;
+e `TESTE_PROCESSO`. `TESTE_ORIGEM` aceita `TRF1PJE1` (padrão), `TRF1PJE2`, `TRF6PJE1` ou `TRF6PJE2`;
 os aliases anteriores `PJE1` e `PJE2` continuam aceitos.
 
 Com essas variáveis definidas no ambiente autorizado:

@@ -1,6 +1,8 @@
 package br.gov.agu.virgo_back.pje;
 
 import br.gov.agu.virgo_back.consulta.domain.*;
+import br.gov.agu.virgo_back.processo.domain.Tribunal;
+import br.gov.agu.virgo_back.processo.domain.GrauJurisdicao;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -23,10 +25,12 @@ class PjeSoapClientIntegrationTest {
     @Test
     void consultaOrigemRealEMapeiaMovimentos() {
         String configurada = System.getenv("TESTE_ORIGEM");
-        OrigemPje origem = configurada == null ? OrigemPje.TRF1PJE1 : switch (configurada.trim()) {
-            case "PJE1" -> OrigemPje.TRF1PJE1;
-            case "PJE2" -> OrigemPje.TRF1PJE2;
-            default -> OrigemPje.valueOf(configurada.trim());
+        OrigemPje origem = configurada == null ? new OrigemPje(Tribunal.TRF1, GrauJurisdicao.PRIMEIRO_GRAU) : switch (configurada.trim()) {
+            case "PJE1", "TRF1PJE1" -> new OrigemPje(Tribunal.TRF1, GrauJurisdicao.PRIMEIRO_GRAU);
+            case "PJE2", "TRF1PJE2" -> new OrigemPje(Tribunal.TRF1, GrauJurisdicao.SEGUNDO_GRAU);
+            case "TRF6PJE1" -> new OrigemPje(Tribunal.TRF6, GrauJurisdicao.PRIMEIRO_GRAU);
+            case "TRF6PJE2" -> new OrigemPje(Tribunal.TRF6, GrauJurisdicao.SEGUNDO_GRAU);
+            default -> throw new IllegalArgumentException("TESTE_ORIGEM inválida: " + configurada);
         };
         var credenciais = new CredenciaisPje();
         credenciais.setLogin(System.getenv("TESTE_LOGIN"));

@@ -1,6 +1,8 @@
 package br.gov.agu.virgo_back.pje;
 
 import br.gov.agu.virgo_back.consulta.domain.*;
+import br.gov.agu.virgo_back.processo.domain.Tribunal;
+import br.gov.agu.virgo_back.processo.domain.GrauJurisdicao;
 import br.gov.agu.virgo_back.processo.domain.TipoMovimentacao;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -16,7 +18,7 @@ class PjeResponseMapperTest {
     void mapeiaCamposSemMisturarDocumentosOuMovimentosAninhados() throws Exception {
         var resposta = mapear(XmlFixtures.movimentos());
         assertEquals(StatusConsulta.ENCONTRADO, resposta.status());
-        assertEquals(OrigemPje.TRF1PJE2, resposta.origem());
+        assertEquals(new OrigemPje(Tribunal.TRF1, GrauJurisdicao.SEGUNDO_GRAU), resposta.origem());
         assertNull(resposta.erro());
         assertEquals(2, resposta.movimentacoes().size());
         var nacional = resposta.movimentacoes().getFirst();
@@ -118,6 +120,6 @@ class PjeResponseMapperTest {
     }
 
     private RespostaConsultaOrigem mapear(String xml) throws Exception {
-        return mapper.mapearResposta(XmlFixtures.parse(xml), OrigemPje.TRF1PJE2);
+        return mapper.mapearResposta(XmlFixtures.parse(xml), new OrigemPje(Tribunal.TRF1, GrauJurisdicao.SEGUNDO_GRAU));
     }
 }

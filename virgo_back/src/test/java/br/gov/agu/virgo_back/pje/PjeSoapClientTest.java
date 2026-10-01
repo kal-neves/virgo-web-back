@@ -1,10 +1,12 @@
 package br.gov.agu.virgo_back.pje;
 
 import br.gov.agu.virgo_back.consulta.domain.*;
+import br.gov.agu.virgo_back.processo.domain.Tribunal;
+import br.gov.agu.virgo_back.processo.domain.GrauJurisdicao;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.ws.client.WebServiceIOException;
 import org.springframework.ws.client.core.WebServiceTemplate;
 import javax.xml.transform.Source;
@@ -18,16 +20,20 @@ import static org.mockito.Mockito.*;
 class PjeSoapClientTest {
     private final WebServiceTemplate transporte = mock(WebServiceTemplate.class);
     private final PjeSoapClient cliente = new PjeSoapClient(transporte, new PjeRequestWriter(),
-            new PjeResponseMapper(), new PjeProperties(new PjeProperties.Endpoints(
+            new PjeResponseMapper(), new ResolverEndpointPje(new PjeProperties(new PjeProperties.Endpoints(
                     URI.create("https://primeiro.invalid/soap"), URI.create("https://segundo.invalid/soap"),
                     URI.create("https://trf6-primeiro.invalid/soap"), URI.create("https://trf6-segundo.invalid/soap")),
-                    Duration.ofSeconds(5), Duration.ofSeconds(30)));
+                    Duration.ofSeconds(5), Duration.ofSeconds(30))));
 
     @ParameterizedTest
-    @EnumSource(OrigemPje.class)
-    void usaEndpointDaOrigemEMapeiaRespostaRealDoAdapter(OrigemPje origem) {
-        String endpoint = origem == OrigemPje.TRF1PJE1
-                ? "https://primeiro.invalid/soap" : "https://segundo.invalid/soap";
+    @CsvSource({
+            "TRF1, PRIMEIRO_GRAU, https://primeiro.invalid/soap",
+            "TRF1, SEGUNDO_GRAU, https://segundo.invalid/soap",
+            "TRF6, PRIMEIRO_GRAU, https://trf6-primeiro.invalid/soap",
+            "TRF6, SEGUNDO_GRAU, https://trf6-segundo.invalid/soap"
+    })
+    void usaEndpointDaOrigemEMapeiaRespostaRealDoAdapter(Tribunal tribunal, GrauJurisdicao grau, String endpoint) {
+        var origem = new OrigemPje(tribunal, grau);
         when(transporte.sendSourceAndReceiveToResult(eq(endpoint), any(Source.class), any(DOMResult.class)))
                 .thenAnswer(invocacao -> {
                     DOMResult resultado = invocacao.getArgument(2);
@@ -45,21 +51,21 @@ class PjeSoapClientTest {
 
     @Test
     void ausenciaDeRespostaNaoViraSucessoVazio() {
-        assertFalha(StatusConsulta.RESPOSTA_INVALIDA, consultar(OrigemPje.TRF1PJE1));
+        assertFalha(StatusConsulta.RESPOSTA_INVALIDA, consultar(new OrigemPje(Tribunal.TRF1, GrauJurisdicao.PRIMEIRO_GRAU)));
     }
 
     @Test
     void retornoSemDocumentoNaoViraSucessoVazio() {
         when(transporte.sendSourceAndReceiveToResult(anyString(), any(Source.class), any(DOMResult.class)))
                 .thenReturn(true);
-        assertFalha(StatusConsulta.RESPOSTA_INVALIDA, consultar(OrigemPje.TRF1PJE1));
+        assertFalha(StatusConsulta.RESPOSTA_INVALIDA, consultar(new OrigemPje(Tribunal.TRF1, GrauJurisdicao.PRIMEIRO_GRAU)));
     }
 
     @Test
     void falhaDeComunicacaoNaoRepeteChamadaNemExpoeDetalhes() {
         when(transporte.sendSourceAndReceiveToResult(anyString(), any(Source.class), any(DOMResult.class)))
                 .thenThrow(new WebServiceIOException("detalhe-interno-sensivel"));
-        var resposta = consultar(OrigemPje.TRF1PJE1);
+        var resposta = consultar(new OrigemPje(Tribunal.TRF1, GrauJurisdicao.PRIMEIRO_GRAU));
         assertFalha(StatusConsulta.INDISPONIVEL, resposta);
         assertFalse(resposta.erro().contains("detalhe-interno-sensivel"));
         verify(transporte).sendSourceAndReceiveToResult(anyString(), any(Source.class), any(DOMResult.class));
