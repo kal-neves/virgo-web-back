@@ -1,6 +1,7 @@
 package br.gov.agu.virgo_back.pje;
 
 import br.gov.agu.virgo_back.consulta.application.ConsultarProcessoGateway;
+import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import br.gov.agu.virgo_back.consulta.domain.OrigemPje;
 import br.gov.agu.virgo_back.consulta.domain.StatusConsulta;

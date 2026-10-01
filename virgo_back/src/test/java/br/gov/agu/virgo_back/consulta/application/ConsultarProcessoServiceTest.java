@@ -1,7 +1,8 @@
 package br.gov.agu.virgo_back.consulta.application;
 
 import br.gov.agu.virgo_back.consulta.domain.*;
-import br.gov.agu.virgo_back.pje.CredenciaisPje;
+import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
+import br.gov.agu.virgo_back.identidade.domain.IdConsultante;
 import br.gov.agu.virgo_back.processo.domain.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -20,7 +21,7 @@ class ConsultarProcessoServiceTest {
         var primeiroGrau = new OrigemPje(tribunal, GrauJurisdicao.PRIMEIRO_GRAU);
         var segundoGrau = new OrigemPje(tribunal, GrauJurisdicao.SEGUNDO_GRAU);
         var numero = new NumeroProcesso("00000000020264010000");
-        var credenciais = new CredenciaisPje();
+        var credenciais = new CredenciaisPje("senha-ficticia", new IdConsultante("01234567890"));
         var movimento = new Movimentacao(new IdentificadorMovimento("-8"),
                 LocalDateTime.of(2026, 9, 30, 10, 0), TipoMovimentacao.NACIONAL, 85, "teste");
         var primeiro = new RespostaConsultaOrigem(primeiroGrau, statusPrimeiro,

@@ -1,6 +1,8 @@
 package br.gov.agu.virgo_back.pje;
 
 import br.gov.agu.virgo_back.consulta.domain.*;
+import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
+import br.gov.agu.virgo_back.identidade.domain.IdConsultante;
 import br.gov.agu.virgo_back.processo.domain.Tribunal;
 import br.gov.agu.virgo_back.processo.domain.GrauJurisdicao;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
@@ -32,9 +34,8 @@ class PjeSoapClientIntegrationTest {
             case "TRF6PJE2" -> new OrigemPje(Tribunal.TRF6, GrauJurisdicao.SEGUNDO_GRAU);
             default -> throw new IllegalArgumentException("TESTE_ORIGEM inválida: " + configurada);
         };
-        var credenciais = new CredenciaisPje();
-        credenciais.setLogin(System.getenv("TESTE_LOGIN"));
-        credenciais.setSenha(System.getenv("TESTE_SENHA"));
+        var credenciais = new CredenciaisPje(System.getenv("TESTE_SENHA"),
+                new IdConsultante(System.getenv("TESTE_LOGIN")));
         var resposta = cliente.consultarProcesso(origem, credenciais,
                 new NumeroProcesso(System.getenv("TESTE_PROCESSO")));
         assertEquals(StatusConsulta.ENCONTRADO, resposta.status());

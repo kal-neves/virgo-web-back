@@ -1,6 +1,8 @@
 package br.gov.agu.virgo_back.pje;
 
 import br.gov.agu.virgo_back.consulta.domain.*;
+import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
+import br.gov.agu.virgo_back.identidade.domain.IdConsultante;
 import br.gov.agu.virgo_back.processo.domain.Tribunal;
 import br.gov.agu.virgo_back.processo.domain.GrauJurisdicao;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
@@ -73,9 +75,7 @@ class PjeSoapClientTest {
     }
 
     private RespostaConsultaOrigem consultar(OrigemPje origem) {
-        var credenciais = new CredenciaisPje();
-        credenciais.setLogin("teste");
-        credenciais.setSenha("senha-ficticia");
+        var credenciais = new CredenciaisPje("senha-ficticia", new IdConsultante("01234567890"));
         return cliente.consultarProcesso(origem, credenciais, new NumeroProcesso("00000000020264010000"));
     }
 

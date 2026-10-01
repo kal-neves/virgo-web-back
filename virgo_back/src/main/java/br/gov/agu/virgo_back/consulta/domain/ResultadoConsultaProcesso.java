@@ -10,8 +10,8 @@ public record ResultadoConsultaProcesso(
         List<RespostaConsultaOrigem> respostas
 ) {
     public ResultadoConsultaProcesso {
-        Objects.requireNonNull(numeroProcesso, "As movimentações são obrigatórias");
-        Objects.requireNonNull(respostas, "O modo de consulta é obrigatório");
+        Objects.requireNonNull(numeroProcesso, "Número de processo é obrigatório");
+        Objects.requireNonNull(respostas, "As respostas são obrigatórias");
         respostas = List.copyOf(respostas);
     }
 }

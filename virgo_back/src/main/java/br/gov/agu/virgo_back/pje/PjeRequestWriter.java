@@ -1,5 +1,6 @@
 package br.gov.agu.virgo_back.pje;
 
+import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +23,7 @@ public class PjeRequestWriter {
         this.xmlOutputFactory = XMLOutputFactory.newFactory();
     }
 
-    public String gerarRequest(CredenciaisPje user, NumeroProcesso numProcesso) {
+    public String gerarRequest(CredenciaisPje credenciais, NumeroProcesso numProcesso) {
         try {
             StringWriter payload = new StringWriter();
             XMLStreamWriter xml = xmlOutputFactory.createXMLStreamWriter(payload);
@@ -32,11 +33,11 @@ public class PjeRequestWriter {
             xml.writeNamespace("tip", TIPOS_NAMESPACE);
 
             xml.writeStartElement("tip", "idConsultante", TIPOS_NAMESPACE);
-            xml.writeCharacters(user.getLogin());
+            xml.writeCharacters(credenciais.login().valor());
             xml.writeEndElement();
 
             xml.writeStartElement("tip", "senhaConsultante", TIPOS_NAMESPACE);
-            xml.writeCharacters(user.getSenha());
+            xml.writeCharacters(credenciais.senha());
             xml.writeEndElement();
 
             xml.writeStartElement("tip", "numeroProcesso", TIPOS_NAMESPACE);
