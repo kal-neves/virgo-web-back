@@ -6,12 +6,28 @@ Os pacotes espelham o código de produção:
 - `consulta/application`: consulta aos dois graus numa nova consulta, com gateway local.
 - `processo/domain`: normalização e rejeição de números CNJ.
 - `pje`: writer, mapper, transporte simulado e integração real opt-in.
+- `PjeTransportTest`: transporte HTTP/SOAP real contra servidor loopback, sem chamadas ao PJe.
 - `VirgoBackApplicationTests`: carregamento do contexto Spring.
 
 Os testes locais verificam resultados observáveis: campos XML, fronteiras de data,
 classificação de falhas e preservação dos resultados de cada grau. Não verificam
 métodos privados, formatação exata do XML ou texto exato dos erros produzidos pelo
 VIRGO. As fixtures XML são sintéticas; sua origem está em `resources/pje/README.md`.
+
+O transporte usa `pje.call-timeout` como prazo desde a criação da conexão Spring-WS
+até o recebimento completo do corpo HTTP, incluindo DNS e espera por conexão.
+`connect-timeout` e `read-timeout` continuam sendo limites independentes, que podem
+encerrar a chamada antes. A transformação local do XML e o mapeamento após o
+recebimento não são interrompidos por esse prazo de rede.
+O cancelamento atinge a troca HTTP real; não apenas uma thread de espera. DNS nativo
+pode ignorar interrupção, por isso suas threads/fila são limitadas e nunca enviam HTTP.
+É usado o primeiro endereço resolvido, sem tentativa automática em outro endereço.
+O hostname permanece na validação TLS e no cabeçalho Host. Retries, redirects e
+armazenamento de cookies estão desabilitados; o Spring fecha o cliente no shutdown.
+As respostas SOAP 1.1 são recebidas em memória e analisadas com DTD, entidades
+externas e XInclude desabilitados. Multipart/attachments não são suportados por
+esse caminho de consulta de movimentos. Não habilite tracing de mensagens/wire
+em ambientes com credenciais reais.
 
 Execute a suíte local a partir do módulo `virgo_back`:
 
