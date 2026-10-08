@@ -25,7 +25,7 @@ class PjeSoapClientTest {
             new PjeResponseMapper(), new ResolverEndpointPje(new PjeProperties(new PjeProperties.Endpoints(
                     URI.create("https://primeiro.invalid/soap"), URI.create("https://segundo.invalid/soap"),
                     URI.create("https://trf6-primeiro.invalid/soap"), URI.create("https://trf6-segundo.invalid/soap")),
-                    Duration.ofSeconds(5), Duration.ofSeconds(30))));
+                    Duration.ofSeconds(5), Duration.ofSeconds(30), Duration.ofSeconds(30))));
 
     @ParameterizedTest
     @CsvSource({

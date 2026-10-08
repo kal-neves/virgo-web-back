@@ -7,6 +7,9 @@ import br.gov.agu.virgo_back.consulta.domain.OrigemPje;
 import br.gov.agu.virgo_back.consulta.domain.StatusConsulta;
 import org.springframework.stereotype.Component;
 import org.springframework.ws.client.WebServiceIOException;
+import org.springframework.ws.InvalidXmlException;
+import org.springframework.ws.soap.SoapMessageCreationException;
+import org.springframework.ws.soap.client.SoapFaultClientException;
 import org.springframework.ws.client.core.WebServiceTemplate;
 import org.springframework.xml.transform.StringSource;
 import org.w3c.dom.Document;
@@ -61,6 +64,9 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
 
             return responseMapper.mapearResposta(documento, origem);
 
+        } catch (SoapFaultClientException | SoapMessageCreationException | InvalidXmlException e) {
+            return new RespostaConsultaOrigem(origem, StatusConsulta.RESPOSTA_INVALIDA,
+                    List.of(), "PJe retornou uma resposta SOAP inválida ou uma falha SOAP");
         } catch (WebServiceIOException e) {
             return new RespostaConsultaOrigem(
                     origem,

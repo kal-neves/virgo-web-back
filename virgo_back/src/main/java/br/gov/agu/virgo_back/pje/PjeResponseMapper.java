@@ -111,11 +111,18 @@ public class PjeResponseMapper {
                     mensagem);
         }
 
-        if (mensagem.contains("Erro ao realizar login ")) {
+        if (mensagem.contains("exception invoking: loginFailed")) {
             return new RespostaConsultaOrigem(origem,
                     StatusConsulta.ACESSO_NEGADO,
                     List.of(),
-                    "Falha de autenticação no PJE");
+                    "Falha de autenticação no PJE: SENHA INCORRETA");
+        }
+
+        if (mensagem.matches(".*O usuário .+ não está corretamente cadastrado no sistema\\..*")) {
+            return new RespostaConsultaOrigem(origem,
+                    StatusConsulta.ACESSO_NEGADO,
+                    List.of(),
+                    "Falha de autenticação no PJE: USUÁRIO INCORRETO");
         }
 
         if (mensagem.matches(".*Processo de número .+ não encontrado!.*")) {
@@ -128,7 +135,7 @@ public class PjeResponseMapper {
         return new RespostaConsultaOrigem(origem,
                 StatusConsulta.RESPOSTA_INVALIDA,
                 List.of(),
-                mensagem
+                "FALLBACK_ERROR: " + mensagem
         );
     }
 }

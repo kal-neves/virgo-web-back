@@ -3,16 +3,16 @@ package br.gov.agu.virgo_back.pje;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.ws.client.core.WebServiceTemplate;
-import org.springframework.ws.transport.http.HttpUrlConnection;
 
 import java.net.URI;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(properties = {
         "pje.connect-timeout=1250ms",
         "pje.read-timeout=2500ms",
+        "pje.call-timeout=3s",
         "pje.endpoints.trf1-primeiro-grau=https://trf1-primeiro.invalid/soap",
         "pje.endpoints.trf1-segundo-grau=https://trf1-segundo.invalid/soap",
         "pje.endpoints.trf6-primeiro-grau=https://trf6-primeiro.invalid/soap",
@@ -21,9 +21,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class SoapConfigTest {
     @Autowired
     private PjeProperties properties;
-
-    @Autowired
-    private WebServiceTemplate template;
 
     @Test
     void vinculaEndpointsDosDoisTribunais() {
@@ -34,14 +31,20 @@ class SoapConfigTest {
     }
 
     @Test
-    void aplicaTimeoutsConfiguradosNaConexao() throws Exception {
-        var senders = template.getMessageSenders();
-        assertEquals(1, senders.length);
-        // Creating the connection does not send a request or contact the endpoint.
-        try (var connection = senders[0].createConnection(properties.endpoints().trf1PrimeiroGrau())) {
-            var http = assertInstanceOf(HttpUrlConnection.class, connection).getConnection();
-            assertEquals(1250, http.getConnectTimeout());
-            assertEquals(2500, http.getReadTimeout());
+    void vinculaTimeoutsIndependentes() {
+        assertEquals(Duration.ofMillis(1250), properties.connectTimeout());
+        assertEquals(Duration.ofMillis(2500), properties.readTimeout());
+        assertEquals(Duration.ofSeconds(3), properties.callTimeout());
+    }
+
+    @Test
+    void rejeitaTimeoutsAusentesOuQueDesabilitariamOLimite() {
+        var endpoints = properties.endpoints();
+        var valido = Duration.ofSeconds(1);
+        for (Duration invalido : java.util.Arrays.asList(null, Duration.ZERO, Duration.ofMillis(-1), Duration.ofNanos(1))) {
+            assertThrows(IllegalArgumentException.class, () -> new PjeProperties(endpoints, invalido, valido, valido));
+            assertThrows(IllegalArgumentException.class, () -> new PjeProperties(endpoints, valido, invalido, valido));
+            assertThrows(IllegalArgumentException.class, () -> new PjeProperties(endpoints, valido, valido, invalido));
         }
     }
 }

@@ -29,8 +29,16 @@
 	<properties>
 		<java.version>25</java.version>
 		<datasource-micrometer.version>2.2.1</datasource-micrometer.version>
+		<!-- Security updates beyond the versions managed by Spring Boot 4.1.1. -->
+		<logback.version>1.6.5</logback.version>
+		<jackson-bom.version>3.1.7</jackson-bom.version>
+		<tomcat.version>11.0.26</tomcat.version>
 	</properties>
 	<dependencies>
+		<dependency>
+			<groupId>org.apache.httpcomponents.client5</groupId>
+			<artifactId>httpclient5</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>

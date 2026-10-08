@@ -99,17 +99,25 @@ class PjeResponseMapperTest {
 
     @ParameterizedTest
     @CsvSource({"Número do processo inválido, PROCESSO_INVALIDO",
-            "Erro ao realizar login via MNI. O usuário 'teste' não está corretamente cadastrado no sistema., ACESSO_NEGADO",
+            "Erro ao realizar login via MNI. O usuário '01234567890' não está corretamente cadastrado no sistema., ACESSO_NEGADO",
+            "O usuário '01234567890' não está corretamente cadastrado no sistema., ACESSO_NEGADO",
             "Erro ao realizar login via MNI. exception invoking: loginFailed, ACESSO_NEGADO",
             "Processo de número 00000000020264010000 não encontrado!, NAO_ENCONTRADO",
+            "Erro ao realizar login via MNI. Falha desconhecida no serviço., RESPOSTA_INVALIDA",
             "Mensagem desconhecida, RESPOSTA_INVALIDA"})
     void classificaFalhasSemConfundirAusenciaComAutenticacao(String mensagem, StatusConsulta status) throws Exception {
         var resposta = mapear(XmlFixtures.movimentos().replace(">true</t:sucesso>", ">false</t:sucesso>")
                 .replace("Processo consultado com sucesso", mensagem));
         assertEquals(status, resposta.status());
+        assertEquals(new OrigemPje(Tribunal.TRF1, GrauJurisdicao.SEGUNDO_GRAU), resposta.origem());
         assertTrue(resposta.movimentacoes().isEmpty());
         assertNotNull(resposta.erro());
-        if (status == StatusConsulta.ACESSO_NEGADO) assertFalse(resposta.erro().contains("loginFailed"));
+        assertFalse(resposta.erro().isBlank());
+        if (status == StatusConsulta.ACESSO_NEGADO) {
+            assertFalse(resposta.erro().contains("01234567890"));
+            assertFalse(resposta.erro().contains("exception invoking"));
+            assertFalse(resposta.erro().contains("loginFailed"));
+        }
     }
 
     private void invalida(String xml) throws Exception {
