@@ -11,10 +11,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.webservices.autoconfigure.client.WebServiceTemplateAutoConfiguration;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Teste real opt-in; consulte src/test/README.md antes de executar. */
-@SpringBootTest
+@ImportAutoConfiguration(WebServiceTemplateAutoConfiguration.class)
+@SpringBootTest(classes = {SoapConfig.class, PjeSoapClient.class, PjeRequestWriter.class,
+        PjeResponseMapper.class, ResolverEndpointPje.class})
 @Tag("pje-live")
 @EnabledIfEnvironmentVariable(named = "PJE_LIVE_TEST", matches = "true")
 @EnabledIfEnvironmentVariable(named = "TESTE_LOGIN", matches = "(?s).*\\S.*")

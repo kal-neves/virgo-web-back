@@ -3,13 +3,16 @@ package br.gov.agu.virgo_back.pje;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.webservices.autoconfigure.client.WebServiceTemplateAutoConfiguration;
 
 import java.net.URI;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(properties = {
+@ImportAutoConfiguration(WebServiceTemplateAutoConfiguration.class)
+@SpringBootTest(classes = SoapConfig.class, properties = {
         "pje.connect-timeout=1250ms",
         "pje.read-timeout=2500ms",
         "pje.call-timeout=3s",

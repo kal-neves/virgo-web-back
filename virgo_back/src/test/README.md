@@ -5,9 +5,15 @@ Os pacotes espelham o código de produção:
 - `consulta/domain`: janela e exibição por data capturada, sem relógio do sistema.
 - `consulta/application`: consulta aos dois graus numa nova consulta, com gateway local.
 - `processo/domain`: normalização e rejeição de números CNJ.
+- `processo/persistence`: migração Flyway e repository JDBC contra PostgreSQL temporário.
 - `pje`: writer, mapper, transporte simulado e integração real opt-in.
 - `PjeTransportTest`: transporte HTTP/SOAP real contra servidor loopback, sem chamadas ao PJe.
 - `VirgoBackApplicationTests`: carregamento do contexto Spring.
+
+Os testes de persistência e contexto iniciam PostgreSQL local temporário em porta
+livre via `embedded-postgres`, sem Docker e sem usar o banco da aplicação. O Maven
+obtém os binários como dependências de teste; o contexto encerra o banco ao fechar.
+As alterações de cada teste de repository são revertidas por transação.
 
 Os testes locais verificam resultados observáveis: campos XML, fronteiras de data,
 classificação de falhas e preservação dos resultados de cada grau. Não verificam
@@ -53,5 +59,6 @@ mapeamento desse teste. Não grave credenciais nem respostas reais nas fixtures.
 
 Mudanças de pacote exigem ajustar imports; mudanças de contrato exigem atualizar
 casos de aceitação. Estes testes evitam detalhes internos, mas não são imunes a
-evoluções legítimas do produto. Continuação de rodadas, persistência e descoberta
-de tribunal ainda não estão implementadas e não são simuladas como funcionalidades prontas.
+evoluções legítimas do produto. A persistência atual cobre identidade mínima e
+processos monitorados. Continuação de rodadas, histórico de detecções e descoberta
+de tribunal ainda não estão implementados.
