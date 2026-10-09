@@ -29,20 +29,12 @@
 	<properties>
 		<java.version>25</java.version>
 		<datasource-micrometer.version>2.2.1</datasource-micrometer.version>
-		<!-- Security updates beyond the versions managed by Spring Boot 4.1.1. -->
 		<logback.version>1.6.5</logback.version>
 		<jackson-bom.version>3.1.7</jackson-bom.version>
 		<tomcat.version>11.0.26</tomcat.version>
 	</properties>
 	<dependencies>
-		<dependency>
-			<groupId>org.apache.httpcomponents.client5</groupId>
-			<artifactId>httpclient5</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-actuator</artifactId>
-		</dependency>
+		<!-- API Web e validacao -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
@@ -51,20 +43,40 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
+
+		<!-- Integracao SOAP / PJe -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webservices</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>net.ttddyy.observation</groupId>
-			<artifactId>datasource-micrometer-spring-boot</artifactId>
+			<groupId>org.apache.httpcomponents.client5</groupId>
+			<artifactId>httpclient5</artifactId>
 		</dependency>
 
+		<!-- Persistencia -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-devtools</artifactId>
-			<scope>runtime</scope>
-			<optional>true</optional>
+			<artifactId>spring-boot-starter-jdbc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
+		<!-- Observabilidade -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>io.micrometer</groupId>
@@ -72,14 +84,29 @@
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>postgresql</artifactId>
+			<groupId>net.ttddyy.observation</groupId>
+			<artifactId>datasource-micrometer-spring-boot</artifactId>
+		</dependency>
+
+		<!-- Desenvolvimento -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
 			<scope>runtime</scope>
+			<optional>true</optional>
 		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
+		</dependency>
+
+		<!-- Testes -->
+		<dependency>
+			<groupId>io.zonky.test</groupId>
+			<artifactId>embedded-postgres</artifactId>
+			<version>2.2.2</version>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
