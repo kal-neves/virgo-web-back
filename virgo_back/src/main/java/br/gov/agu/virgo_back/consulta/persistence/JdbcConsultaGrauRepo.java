@@ -20,7 +20,7 @@ public class JdbcConsultaGrauRepo implements ConsultaGrauRepository {
     @Override
     public void registrar(UUID id, UUID processoId, RespostaConsultaOrigem resposta, Instant instante) {
         jdbc.sql("""
-                INSERT INTO consulta_grau (id, processo_id, tribunal, grau, status, erro, registrada_em)
+                INSERT INTO tentativa_consulta_grau (id, processo_id, tribunal, grau, status, erro, registrada_em)
                 VALUES (:id, :processo, :tribunal, :grau, :status, :erro, :instante)
                 """)
                 .param("id", id).param("processo", processoId)
@@ -33,7 +33,7 @@ public class JdbcConsultaGrauRepo implements ConsultaGrauRepository {
 
     @Override
     public void registrarQuantidadeDetectada(UUID id, int quantidade) {
-        int alterados = jdbc.sql("UPDATE consulta_grau SET novas_movimentacoes = :quantidade WHERE id = :id")
+        int alterados = jdbc.sql("UPDATE tentativa_consulta_grau SET novas_movimentacoes = :quantidade WHERE id = :id")
                 .param("quantidade", quantidade).param("id", id).update();
         if (alterados != 1) throw new IllegalStateException("Consulta de grau inexistente");
     }

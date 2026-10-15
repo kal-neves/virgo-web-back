@@ -33,3 +33,4 @@ build/
 .vscode/
 
 .docs/
+.virgo_back/docs/
