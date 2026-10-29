@@ -46,6 +46,12 @@ public class JdbcConsultaGrauRepo implements ConsultaGrauRepository {
         if (alterados != 1) throw new IllegalStateException("Consulta de grau inexistente");
     }
 
+    /**
+     * marca o grau como em andamento se ele puder iniciar
+     * bloqueia a rodada até a transação terminar para evitar dois graus iniciando juntos
+     * retorna false quando as condições de início não forem atendidas
+     * usa a transação do chamador ou abre uma nova quando não houver uma
+     */
     @Override
     @Transactional
     public boolean iniciar(IdConsultante proprietario, UUID consultaId, Instant inicio) {
@@ -71,6 +77,12 @@ public class JdbcConsultaGrauRepo implements ConsultaGrauRepository {
         return alterados == 1;
     }
 
+    /**
+     * registra uma tentativa numerada para o grau que está em andamento
+     * confere a origem e o início esperado antes de salvar a resposta
+     * exige uma transação aberta pelo chamador para salvar as detecções e concluir o grau juntos
+     * a tentativa só é confirmada quando essa transação termina com sucesso
+     */
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public void registrarTentativa(IdConsultante proprietario, UUID consultaId, UUID tentativaId,
@@ -109,6 +121,11 @@ public class JdbcConsultaGrauRepo implements ConsultaGrauRepository {
         if (inseridos != 1) throw new IllegalStateException("Consulta nao esta em execucao ou origem/inicio divergente");
     }
 
+    /**
+     * salva as contagens da tentativa e marca o grau como concluído com esse resultado
+     * exige a transação do chamador para confirmar a tentativa e as detecções juntas
+     * rejeita tentativas já finalizadas para preservar os resultados anteriores
+     */
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public void concluir(IdConsultante proprietario, UUID consultaId, UUID tentativaId, int detectadas, int exibidas) {

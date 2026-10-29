@@ -34,12 +34,23 @@ public class ConsultarProcessoService {
         this.processos = processos;
     }
 
+    /**
+     * consulta os graus sem receber um sinal de cancelamento
+     * suspende a transação do chamador durante as chamadas ao PJe
+     * cada resultado é salvo em uma transação própria antes da próxima chamada
+     */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ResultadoConsultaProcesso consultarProcesso(
             CredenciaisPje credenciais, IdConsultante proprietario, UUID processoId, Tribunal tribunal) {
         return consultarProcesso(credenciais, proprietario, processoId, tribunal, () -> false);
     }
 
+    /**
+     * consulta os graus em sequência sem manter uma transação aberta durante o acesso ao PJe
+     * verifica o cancelamento antes de cada envio e salva o resultado de uma chamada já iniciada
+     * os resultados já confirmados são preservados se uma chamada posterior falhar
+     * o chamador deve autorizar o executor a acessar o processo do proprietário
+     */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ResultadoConsultaProcesso consultarProcesso(
             CredenciaisPje credenciais, IdConsultante proprietario, UUID processoId, Tribunal tribunal,

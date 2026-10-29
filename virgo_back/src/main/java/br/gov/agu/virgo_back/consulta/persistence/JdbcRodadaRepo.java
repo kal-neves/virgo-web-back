@@ -27,6 +27,11 @@ public class JdbcRodadaRepo implements RodadaRepository {
         this.itens = itens;
     }
 
+    /**
+     * salva a rodada, seus itens e os dois graus de cada item na mesma transação
+     * se alguma gravação falhar, a criação inteira é desfeita
+     * usa a transação do chamador ou abre uma nova quando não houver uma
+     */
     @Override
     @Transactional
     public void criar(Rodada rodada, Map<OrigemPje, URI> endpoints) {
@@ -79,6 +84,11 @@ public class JdbcRodadaRepo implements RodadaRepository {
         }
     }
 
+    /**
+     * busca a rodada do proprietário com seus itens e resultados sem alterar os dados
+     * ao abrir uma transação, mantém a mesma visão dos dados durante as leituras
+     * se o chamador já tiver uma transação, usa as configurações dela
+     */
     @Override
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Optional<Rodada> buscarPorId(IdConsultante proprietario, UUID id) {
