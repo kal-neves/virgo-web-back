@@ -16,6 +16,8 @@ import org.w3c.dom.Document;
 
 import javax.xml.transform.dom.DOMResult;
 import java.util.List;
+import java.net.URI;
+import java.util.Objects;
 
 import br.gov.agu.virgo_back.consulta.domain.RespostaConsultaOrigem;
 
@@ -41,7 +43,19 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
     @Override
     public RespostaConsultaOrigem consultarProcesso(OrigemPje origem, CredenciaisPje credenciais, NumeroProcesso numProcesso) {
 
-        String uri = resolverEndpoint.resolver(origem).toString();
+        return consultarProcesso(origem, resolverEndpoint.resolver(origem), credenciais, numProcesso);
+    }
+
+    @Override
+    public RespostaConsultaOrigem consultarProcesso(OrigemPje origem, URI endpoint,
+                                                   CredenciaisPje credenciais, NumeroProcesso numProcesso) {
+        Objects.requireNonNull(origem);
+        Objects.requireNonNull(endpoint);
+        if (endpoint.getHost() == null || endpoint.getUserInfo() != null || endpoint.getFragment() != null
+                || !("https".equalsIgnoreCase(endpoint.getScheme()) || "http".equalsIgnoreCase(endpoint.getScheme()))) {
+            throw new IllegalArgumentException("Endpoint HTTP(S) sem credenciais e obrigatorio");
+        }
+        String uri = endpoint.toString();
 
         StringSource request = new StringSource(
                 requestWriter.gerarRequest(credenciais, numProcesso)

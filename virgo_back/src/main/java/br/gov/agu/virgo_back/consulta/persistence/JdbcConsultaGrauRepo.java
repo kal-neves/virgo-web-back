@@ -15,6 +15,8 @@ import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
+import java.net.URI;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -164,6 +166,17 @@ public class JdbcConsultaGrauRepo implements ConsultaGrauRepository {
                         rs.getObject("registrada_em", OffsetDateTime.class).toInstant(),
                         StatusConsulta.valueOf(rs.getString("status")), rs.getString("erro"),
                         rs.getInt("novas_movimentacoes"), rs.getObject("movimentacoes_exibidas", Integer.class))).list();
+    }
+
+    @Override
+    public Optional<URI> buscarEndpoint(IdConsultante proprietario, UUID consultaId) {
+        Objects.requireNonNull(proprietario);
+        Objects.requireNonNull(consultaId);
+        return jdbc.sql("""
+                SELECT c.endpoint FROM consulta_grau c JOIN item_rodada i ON i.id = c.item_rodada_id
+                WHERE c.id = :consulta AND i.proprietario_id = :proprietario
+                """).param("consulta", consultaId).param("proprietario", proprietario.valor())
+                .query(String.class).optional().map(URI::create);
     }
 
     private UUID bloquearRodada(IdConsultante proprietario, UUID consultaId) {

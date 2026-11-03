@@ -4,6 +4,7 @@ import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import br.gov.agu.virgo_back.consulta.domain.OrigemPje;
 import br.gov.agu.virgo_back.consulta.domain.RespostaConsultaOrigem;
+import java.net.URI;
 
 public interface ConsultarProcessoGateway {
 
@@ -12,4 +13,7 @@ public interface ConsultarProcessoGateway {
             CredenciaisPje credenciais,
             NumeroProcesso numProcesso
     );
+
+    RespostaConsultaOrigem consultarProcesso(
+            OrigemPje origem, URI endpoint, CredenciaisPje credenciais, NumeroProcesso numProcesso);
 }

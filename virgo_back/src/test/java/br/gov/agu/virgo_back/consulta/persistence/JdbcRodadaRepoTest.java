@@ -442,6 +442,17 @@ class JdbcRodadaRepoTest {
         }
     }
 
+    @Test
+    void recuperaEndpointCapturadoSomenteParaProprietarioDaConsulta() {
+        var rodada = rodada(1);
+        rodadas.criar(rodada, ENDPOINTS);
+        for (var consulta : rodada.itens().getFirst().consultas()) {
+            assertEquals(ENDPOINTS.get(consulta.origem()), consultas.buscarEndpoint(DONO, consulta.id()).orElseThrow());
+            assertTrue(consultas.buscarEndpoint(EXECUTOR, consulta.id()).isEmpty());
+        }
+        assertTrue(consultas.buscarEndpoint(DONO, UUID.randomUUID()).isEmpty());
+    }
+
     private Rodada rodada(int quantidade) {
         var id = UUID.randomUUID();
         var lista = new ArrayList<ItemRodada>();

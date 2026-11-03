@@ -9,6 +9,7 @@ import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.ws.client.WebServiceIOException;
 import org.springframework.ws.client.core.WebServiceTemplate;
 import javax.xml.transform.Source;
@@ -72,6 +73,35 @@ class PjeSoapClientTest {
         assertFalse(resposta.erro().contains("detalhe-interno-sensivel"));
         verify(transporte).sendSourceAndReceiveToResult(anyString(), any(Source.class), any(DOMResult.class));
         verifyNoMoreInteractions(transporte);
+    }
+
+    @Test
+    void usaEndpointCapturadoMesmoQuandoConfiguracaoAtualEOutra() {
+        var origem = new OrigemPje(Tribunal.TRF1, GrauJurisdicao.PRIMEIRO_GRAU);
+        var endpoint = URI.create("https://capturado.invalid/soap");
+        when(transporte.sendSourceAndReceiveToResult(eq(endpoint.toString()), any(Source.class), any(DOMResult.class)))
+                .thenAnswer(invocacao -> {
+                    DOMResult resultado = invocacao.getArgument(2);
+                    resultado.setNode(XmlFixtures.parse(XmlFixtures.movimentos()));
+                    return true;
+                });
+        var resposta = cliente.consultarProcesso(origem, endpoint,
+                new CredenciaisPje("senha-ficticia", new IdConsultante("01234567890")),
+                new NumeroProcesso("00000000020264010000"));
+        assertEquals(StatusConsulta.ENCONTRADO, resposta.status());
+        assertEquals(origem, resposta.origem());
+        verify(transporte).sendSourceAndReceiveToResult(eq(endpoint.toString()), any(Source.class), any(DOMResult.class));
+        verifyNoMoreInteractions(transporte);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/relativo", "file:///arquivo", "https://usuario:senha@example.test/soap", "https://example.test/soap#fragmento"})
+    void rejeitaEndpointInvalidoAntesDoTransporte(String endpoint) {
+        assertThrows(IllegalArgumentException.class, () -> cliente.consultarProcesso(
+                new OrigemPje(Tribunal.TRF1, GrauJurisdicao.PRIMEIRO_GRAU), URI.create(endpoint),
+                new CredenciaisPje("senha-ficticia", new IdConsultante("01234567890")),
+                new NumeroProcesso("00000000020264010000")));
+        verifyNoInteractions(transporte);
     }
 
     private RespostaConsultaOrigem consultar(OrigemPje origem) {

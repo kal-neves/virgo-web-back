@@ -8,6 +8,8 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.List;
+import java.net.URI;
+import java.util.Optional;
 
 public interface ConsultaGrauRepository {
     /** caminho legado */
@@ -32,6 +34,8 @@ public interface ConsultaGrauRepository {
     void concluir(IdConsultante proprietario, UUID consultaId, UUID tentativaId, int detectadas, int exibidas);
 
     List<Tentativa> buscarTentativas(IdConsultante proprietario, UUID consultaId);
+
+    Optional<URI> buscarEndpoint(IdConsultante proprietario, UUID consultaId);
 
     record Tentativa(UUID id, int numero, Instant registradaEm, StatusConsulta status,
                      @Nullable String erro, int detectadas, @Nullable Integer exibidas) {}
