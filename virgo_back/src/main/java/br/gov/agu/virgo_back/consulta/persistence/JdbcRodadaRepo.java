@@ -10,6 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.net.URI;
 import java.sql.Types;
 import java.time.LocalDate;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Map;
@@ -82,6 +85,131 @@ public class JdbcRodadaRepo implements RodadaRepository {
                         .param("endpoint", destinos.get(consulta.origem()).toString()).update();
             }
         }
+    }
+
+    /**
+     * inicia uma rodada pendente dentro da transação do chamador ou de uma nova transação
+     * usa o mesmo bloqueio dos graus para impedir que início e cancelamento se sobreponham
+     */
+    @Override
+    @Transactional
+    public boolean iniciar(IdConsultante proprietario, IdConsultante executor, UUID id, Instant inicio) {
+        var instante = instanteBanco(inicio);
+        if (buscarEBloquear(proprietario, executor, id).isEmpty()) return false;
+        return jdbc.sql("""
+                UPDATE rodada SET estado = 'EM_ANDAMENTO', inicio = :inicio
+                WHERE id = :id AND estado = 'PENDENTE' AND NOT cancelamento_solicitado
+                """).param("inicio", instante).param("id", id).update() == 1;
+    }
+
+    /**
+     * salva o pedido de cancelamento sem alterar uma chamada em andamento
+     * mantém o bloqueio da rodada até a transação terminar
+     * repetir o pedido não muda o resultado de um cancelamento já solicitado
+     */
+    @Override
+    @Transactional
+    public boolean solicitarCancelamento(IdConsultante proprietario, IdConsultante executor, UUID id) {
+        if (buscarEBloquear(proprietario, executor, id).isEmpty()) return false;
+        return jdbc.sql("""
+                UPDATE rodada SET cancelamento_solicitado = true
+                WHERE id = :id AND estado IN ('PENDENTE', 'EM_ANDAMENTO', 'CANCELADA')
+                """).param("id", id).update() == 1;
+    }
+
+    @Override
+    public boolean cancelamentoSolicitado(IdConsultante proprietario, IdConsultante executor, UUID id) {
+        validarIdentidade(proprietario, executor, id);
+        return jdbc.sql("""
+                SELECT cancelamento_solicitado FROM rodada
+                WHERE id = :id AND proprietario_id = :proprietario AND executor_id = :executor
+                """).param("id", id).param("proprietario", proprietario.valor()).param("executor", executor.valor())
+                .query(Boolean.class).optional().orElse(false);
+    }
+
+    /**
+     * confirma o término da rodada apenas quando todos os graus estão concluídos
+     * verifica o cancelamento sob o mesmo bloqueio para respeitar o pedido que chegar primeiro
+     */
+    @Override
+    @Transactional
+    public boolean concluir(IdConsultante proprietario, IdConsultante executor, UUID id, Instant fim) {
+        return encerrar(proprietario, executor, id, fim, EstadoExecucao.CONCLUIDA);
+    }
+
+    /**
+     * confirma o cancelamento e marca os graus restantes na mesma transação
+     * retorna false enquanto houver grau em andamento e preserva as tentativas concluídas
+     */
+    @Override
+    @Transactional
+    public boolean cancelar(IdConsultante proprietario, IdConsultante executor, UUID id, Instant fim) {
+        return encerrar(proprietario, executor, id, fim, EstadoExecucao.CANCELADA);
+    }
+
+    /**
+     * marca a rodada e os graus incompletos como interrompidos na mesma transação
+     * deve ser chamado somente depois que o trabalhador parar
+     * preserva resultados concluídos e não inventa respostas para chamadas sem resultado
+     */
+    @Override
+    @Transactional
+    public boolean interromper(IdConsultante proprietario, IdConsultante executor, UUID id, Instant fim) {
+        return encerrar(proprietario, executor, id, fim, EstadoExecucao.INTERROMPIDA);
+    }
+
+    private boolean encerrar(IdConsultante proprietario, IdConsultante executor, UUID id,
+                             Instant fim, EstadoExecucao destino) {
+        var instante = instanteBanco(fim);
+        if (buscarEBloquear(proprietario, executor, id).isEmpty()) return false;
+        var estado = jdbc.sql("SELECT estado FROM rodada WHERE id = ?").param(id).query(String.class).single();
+        if (estado.equals(destino.name())) return true;
+        if (!estado.equals("PENDENTE") && !estado.equals("EM_ANDAMENTO")) return false;
+        boolean permitido = jdbc.sql("""
+                SELECT (inicio IS NULL OR :fim >= inicio)
+                    AND NOT EXISTS (SELECT 1 FROM consulta_grau c JOIN item_rodada i ON i.id = c.item_rodada_id
+                        WHERE i.rodada_id = r.id AND (c.inicio > :fim OR c.fim > :fim))
+                    AND CASE :destino
+                        WHEN 'CONCLUIDA' THEN r.estado = 'EM_ANDAMENTO' AND NOT r.cancelamento_solicitado
+                            AND NOT EXISTS (SELECT 1 FROM consulta_grau c JOIN item_rodada i ON i.id = c.item_rodada_id
+                                WHERE i.rodada_id = r.id AND c.estado <> 'CONCLUIDA')
+                        WHEN 'CANCELADA' THEN r.cancelamento_solicitado
+                            AND NOT EXISTS (SELECT 1 FROM consulta_grau c JOIN item_rodada i ON i.id = c.item_rodada_id
+                                WHERE i.rodada_id = r.id AND c.estado = 'EM_ANDAMENTO')
+                        ELSE true END
+                FROM rodada r WHERE r.id = :id
+                """).param("fim", instante).param("destino", destino.name()).param("id", id)
+                .query(Boolean.class).single();
+        if (!permitido) return false;
+        if (destino != EstadoExecucao.CONCLUIDA) {
+            jdbc.sql("""
+                    UPDATE consulta_grau c SET estado = :estado, fim = :fim
+                    FROM item_rodada i WHERE c.item_rodada_id = i.id AND i.rodada_id = :id
+                        AND c.estado <> 'CONCLUIDA'
+                    """).param("estado", destino.name()).param("fim", instante).param("id", id).update();
+        }
+        jdbc.sql("UPDATE rodada SET estado = :estado, fim = :fim WHERE id = :id")
+                .param("estado", destino.name()).param("fim", instante).param("id", id).update();
+        return true;
+    }
+
+    private Optional<UUID> buscarEBloquear(IdConsultante proprietario, IdConsultante executor, UUID id) {
+        validarIdentidade(proprietario, executor, id);
+        return jdbc.sql("""
+                SELECT id FROM rodada WHERE id = :id AND proprietario_id = :proprietario
+                    AND executor_id = :executor FOR UPDATE
+                """).param("id", id).param("proprietario", proprietario.valor()).param("executor", executor.valor())
+                .query(UUID.class).optional();
+    }
+
+    private static void validarIdentidade(IdConsultante proprietario, IdConsultante executor, UUID id) {
+        Objects.requireNonNull(proprietario);
+        Objects.requireNonNull(executor);
+        Objects.requireNonNull(id);
+    }
+
+    private static OffsetDateTime instanteBanco(Instant instante) {
+        return Objects.requireNonNull(instante).truncatedTo(ChronoUnit.MICROS).atOffset(ZoneOffset.UTC);
     }
 
     /**
