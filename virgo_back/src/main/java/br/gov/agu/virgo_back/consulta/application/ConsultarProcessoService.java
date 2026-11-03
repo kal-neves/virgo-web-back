@@ -10,6 +10,10 @@ import br.gov.agu.virgo_back.consulta.domain.OrigemPje;
 import br.gov.agu.virgo_back.consulta.domain.RespostaConsultaOrigem;
 import br.gov.agu.virgo_back.consulta.domain.ResultadoConsultaProcesso;
 import br.gov.agu.virgo_back.consulta.domain.StatusConsulta;
+import br.gov.agu.virgo_back.consulta.domain.Rodada;
+import br.gov.agu.virgo_back.consulta.domain.ItemRodada;
+import br.gov.agu.virgo_back.consulta.domain.ConsultaGrau;
+import br.gov.agu.virgo_back.consulta.persistence.ConsultaGrauRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import java.time.Instant;
 
 @Service
 public class ConsultarProcessoService {
@@ -26,12 +31,41 @@ public class ConsultarProcessoService {
     private final ConsultarProcessoGateway gateway;
     private final RegistrarDeteccoesService registro;
     private final ProcessoMonitoradoRepository processos;
+    private final ConsultaGrauRepository consultas;
 
     public ConsultarProcessoService(ConsultarProcessoGateway gateway, RegistrarDeteccoesService registro,
-                                   ProcessoMonitoradoRepository processos) {
+                                   ProcessoMonitoradoRepository processos, ConsultaGrauRepository consultas) {
         this.gateway = gateway;
         this.registro = registro;
         this.processos = processos;
+        this.consultas = consultas;
+    }
+
+    /**
+     * consulta um grau já iniciado usando o endpoint salvo no planejamento
+     * mantém a chamada ao PJe fora de uma transação de banco
+     * confirma o resultado e as detecções em uma transação própria antes de retornar
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public RespostaConsultaOrigem consultarGrauPlanejado(Rodada rodada, ItemRodada item, ConsultaGrau consulta,
+                                                        Instant inicio, CredenciaisPje credenciais) {
+        Objects.requireNonNull(rodada);
+        Objects.requireNonNull(item);
+        Objects.requireNonNull(consulta);
+        Objects.requireNonNull(inicio);
+        Objects.requireNonNull(credenciais);
+        if (!rodada.itens().contains(item) || !item.consultas().contains(consulta)) {
+            throw new IllegalArgumentException("Consulta ou item nao pertence a rodada");
+        }
+        var endpoint = consultas.buscarEndpoint(rodada.proprietario(), consulta.id())
+                .orElseThrow(() -> new IllegalStateException("Endpoint da consulta nao encontrado"));
+        var resposta = Objects.requireNonNull(gateway.consultarProcesso(consulta.origem(), endpoint,
+                credenciais, item.numeroProcesso()), "Resposta obrigatoria");
+        if (!consulta.origem().equals(resposta.origem())) {
+            throw new IllegalStateException("Origem da resposta difere da origem consultada");
+        }
+        registro.registrarPlanejada(rodada.proprietario(), rodada.id(), consulta.id(), UUID.randomUUID(), inicio, resposta);
+        return resposta;
     }
 
     /**
