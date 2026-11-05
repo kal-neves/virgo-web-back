@@ -30,8 +30,10 @@
 		<java.version>25</java.version>
 		<datasource-micrometer.version>2.2.1</datasource-micrometer.version>
 		<logback.version>1.6.5</logback.version>
-		<jackson-bom.version>3.1.7</jackson-bom.version>
-		<tomcat.version>11.0.26</tomcat.version>
+		<jackson-bom.version>3.1.8</jackson-bom.version>
+		<tomcat.version>11.0.27</tomcat.version>
+		<postgresql.version>42.7.14</postgresql.version>
+		<json-smart.version>2.6.1</json-smart.version>
 	</properties>
 	<dependencies>
 		<!-- API Web e validacao -->
@@ -73,21 +75,6 @@
 			<artifactId>flyway-database-postgresql</artifactId>
 		</dependency>
 
-		<!-- Observabilidade -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-actuator</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>io.micrometer</groupId>
-			<artifactId>micrometer-registry-prometheus</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-		<dependency>
-			<groupId>net.ttddyy.observation</groupId>
-			<artifactId>datasource-micrometer-spring-boot</artifactId>
-		</dependency>
-
 		<!-- Desenvolvimento -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -102,6 +89,12 @@
 		</dependency>
 
 		<!-- Testes -->
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20260814</version>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>io.zonky.test</groupId>
 			<artifactId>embedded-postgres</artifactId>
@@ -126,6 +119,17 @@
 	</dependencies>
 	<dependencyManagement>
 		<dependencies>
+			<dependency>
+				<groupId>org.skyscreamer</groupId>
+				<artifactId>jsonassert</artifactId>
+				<version>${jsonassert.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>com.vaadin.external.google</groupId>
+						<artifactId>android-json</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
 			<dependency>
 				<groupId>net.ttddyy.observation</groupId>
 				<artifactId>datasource-micrometer-bom</artifactId>

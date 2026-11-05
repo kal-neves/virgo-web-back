@@ -1,29 +1,20 @@
-# Fixtures do mapper
+# Fixture do mapper PJe
 
-`consulta-movimentos.xml` contém dados sintéticos, sem credenciais ou dados judiciais reais.
-Estrutura consultada em 2026-09-29:
-[WSDL público TRF1](https://pje1g.trf1.jus.br/pje/intercomunicacao?wsdl).
+[consulta-movimentos.xml](consulta-movimentos.xml) contém dados sintéticos. A estrutura usa como referência o
+[WSDL público do TRF1](https://pje1g.trf1.jus.br/pje/intercomunicacao?wsdl) (2026-09-29)
 
-O payload é `consultarProcessoResposta` no namespace de serviço; sucesso, mensagem e
-processo usam tipos-servico; movimentos e seus filhos usam intercomunicacao.
-O atributo temporal é `dataHora`. IDs são strings opacas, inclusive negativos;
-os códigos são `xs:int`. Complementos são opcionais e podem ocorrer diretamente
-no movimento e dentro de movimentoNacional. A descrição nacional reúne esses
-campos em ordem, separados por quebra de linha; a local usa apenas `descricao`.
+A fixture testa o mapeamento do payload `consultarProcessoResposta`, extraído
+do envelope SOAP. Não é um teste de validação de schema completa.
 
-O documento aninhado e o pai do movimento local são distrações intencionais para
-verificar que o mapper não percorre descendentes arbitrários nem mistura textos.
-Este é um teste do mapeamento, não uma validação XSD completa. O mapper recebe
-o payload já extraído pelo WebServiceTemplate, não o envelope SOAP.
+- Os namespaces, `dataHora` e os movimentos nacionais/locais exercitam a leitura
+  dos campos esperados.
+- IDs negativos e não numéricos verificam que os identificadores são preservados
+  como texto. Complementos com caracteres escapados e CDATA exercitam a descrição.
+- O movimento dentro de `documento` é uma distração intencional: não deve ser
+  confundido com um movimento diretamente associado ao processo.
+- `idDocumentoVinculado`, o complemento do movimento local e
+  `movimentoLocalPai` verificam que textos alheios à descrição não são incorporados.
 
-A fixture não registra XSDs no IntelliJ. O comentário `suppress XmlHighlighting`
-limita a supressão de avisos de validação XML ao elemento raiz desta fixture,
-incluindo seus descendentes. Os namespaces permanecem intactos e continuam sendo
-verificados pelos testes; não é necessário baixar recursos dos URIs de namespace.
-
-Política do VIRGO: exigir ID não vazio e exatamente um tipo nacional/local, mesmo
-que o WSDL permita esses campos ausentes. Um movimento inválido rejeita o resultado
-inteiro daquela origem, sem movimentos parciais. Complemento ausente é permitido
-e resulta em descrição vazia; nenhum texto substituto é inventado.
-
-O teste de integração com PJe permanece opt-in e separado destes testes locais.
+As regras de validação e os casos de campos ausentes ou inválidos ficam em
+[PjeResponseMapperTest](../../java/br/gov/agu/virgo_back/pje/PjeResponseMapperTest.java).
+Ao editar a fixture, preserve essas distinções para não enfraquecer os testes.
