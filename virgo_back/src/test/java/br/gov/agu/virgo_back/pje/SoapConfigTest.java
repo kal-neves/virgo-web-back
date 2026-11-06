@@ -45,9 +45,9 @@ class SoapConfigTest {
         var endpoints = properties.endpoints();
         var valido = Duration.ofSeconds(1);
         for (Duration invalido : java.util.Arrays.asList(null, Duration.ZERO, Duration.ofMillis(-1), Duration.ofNanos(1))) {
-            assertThrows(IllegalArgumentException.class, () -> new PjeProperties(endpoints, invalido, valido, valido));
-            assertThrows(IllegalArgumentException.class, () -> new PjeProperties(endpoints, valido, invalido, valido));
-            assertThrows(IllegalArgumentException.class, () -> new PjeProperties(endpoints, valido, valido, invalido));
+            assertThrows(IllegalArgumentException.class, () -> new PjeProperties(endpoints, invalido, valido, valido, properties.numeroProva()));
+            assertThrows(IllegalArgumentException.class, () -> new PjeProperties(endpoints, valido, invalido, valido, properties.numeroProva()));
+            assertThrows(IllegalArgumentException.class, () -> new PjeProperties(endpoints, valido, valido, invalido, properties.numeroProva()));
         }
     }
 }

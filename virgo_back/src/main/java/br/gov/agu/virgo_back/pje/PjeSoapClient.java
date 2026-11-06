@@ -1,6 +1,7 @@
 package br.gov.agu.virgo_back.pje;
 
 import br.gov.agu.virgo_back.consulta.application.ConsultarProcessoGateway;
+import br.gov.agu.virgo_back.consulta.application.VerificarConectividadeGateway;
 import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import br.gov.agu.virgo_back.consulta.domain.OrigemPje;
@@ -23,21 +24,28 @@ import br.gov.agu.virgo_back.consulta.domain.RespostaConsultaOrigem;
 
 
 @Component
-public class PjeSoapClient implements ConsultarProcessoGateway {
+public class PjeSoapClient implements ConsultarProcessoGateway, VerificarConectividadeGateway {
 
     private final WebServiceTemplate webServiceTemplate;
     private final PjeRequestWriter requestWriter;
     private final PjeResponseMapper responseMapper;
     private final ResolverEndpointPje resolverEndpoint;
+    private final NumeroProcesso numeroProva;
 
     public PjeSoapClient(WebServiceTemplate webServiceTemplate,
                          PjeRequestWriter requestWriter,
                          PjeResponseMapper responseMapper,
-                         ResolverEndpointPje resolverEndpoint) {
+                         ResolverEndpointPje resolverEndpoint, PjeProperties properties) {
         this.webServiceTemplate = webServiceTemplate;
         this.requestWriter = requestWriter;
         this.responseMapper = responseMapper;
         this.resolverEndpoint = resolverEndpoint;
+        this.numeroProva = new NumeroProcesso(properties.numeroProva());
+    }
+
+    @Override
+    public StatusConsulta verificar(OrigemPje origem, CredenciaisPje credenciais) {
+        return enviar(origem, resolverEndpoint.resolver(origem), credenciais, numeroProva, true).status();
     }
 
     @Override
@@ -49,6 +57,11 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
     @Override
     public RespostaConsultaOrigem consultarProcesso(OrigemPje origem, URI endpoint,
                                                    CredenciaisPje credenciais, NumeroProcesso numProcesso) {
+        return enviar(origem, endpoint, credenciais, numProcesso, false);
+    }
+
+    private RespostaConsultaOrigem enviar(OrigemPje origem, URI endpoint, CredenciaisPje credenciais,
+                                          NumeroProcesso numProcesso, boolean prova) {
         Objects.requireNonNull(origem);
         Objects.requireNonNull(endpoint);
         if (endpoint.getHost() == null || endpoint.getUserInfo() != null || endpoint.getFragment() != null
@@ -76,7 +89,8 @@ public class PjeSoapClient implements ConsultarProcessoGateway {
                         "PJe não retornou documento de resposta");
             }
 
-            return responseMapper.mapearResposta(documento, origem);
+            return prova ? responseMapper.mapearConectividade(documento, origem)
+                    : responseMapper.mapearResposta(documento, origem);
 
         } catch (SoapFaultClientException | SoapMessageCreationException | InvalidXmlException e) {
             return new RespostaConsultaOrigem(origem, StatusConsulta.RESPOSTA_INVALIDA,
