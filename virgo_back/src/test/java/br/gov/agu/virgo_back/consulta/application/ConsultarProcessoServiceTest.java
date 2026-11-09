@@ -39,7 +39,7 @@ class ConsultarProcessoServiceTest {
     @Autowired ProcessoMonitoradoRepository processos;
     @Autowired JdbcClient jdbc;
     @Autowired PlatformTransactionManager transactionManager;
-    @MockitoBean ConsultarProcessoGateway gateway;
+    @MockitoBean(extraInterfaces = VerificarConectividadeGateway.class) ConsultarProcessoGateway gateway;
     private UUID processoId;
 
     @BeforeEach

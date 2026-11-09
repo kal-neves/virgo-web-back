@@ -1,6 +1,9 @@
 package br.gov.agu.virgo_back.consulta.execution;
 
 import br.gov.agu.virgo_back.consulta.application.ConsultarProcessoGateway;
+import br.gov.agu.virgo_back.consulta.application.VerificarConectividadeGateway;
+import br.gov.agu.virgo_back.consulta.application.ExecutarRodadaService;
+import br.gov.agu.virgo_back.identidade.session.CredenciaisJobStore;
 import br.gov.agu.virgo_back.consulta.domain.*;
 import br.gov.agu.virgo_back.consulta.persistence.RodadaRepository;
 import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
@@ -31,10 +34,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.awaitility.Awaitility.await;
 
 @SpringBootTest
 @Import(PostgresTestConfig.class)
@@ -50,7 +56,9 @@ class ExecutorSequencialRodadaTest {
     @Autowired ProcessoMonitoradoRepository processos;
     @Autowired JdbcClient jdbc;
     @Autowired PlatformTransactionManager transactions;
-    @MockitoBean ConsultarProcessoGateway gateway;
+    @Autowired ExecutarRodadaService admissao;
+    @Autowired CredenciaisJobStore credenciaisJobs;
+    @MockitoBean(extraInterfaces = VerificarConectividadeGateway.class) ConsultarProcessoGateway gateway;
     private int proximoNumero;
 
     @BeforeEach
@@ -252,6 +260,56 @@ class ExecutorSequencialRodadaTest {
         assertEquals(ResultadoExecucao.SUCESSO, salva.resultado().orElseThrow());
         assertEquals(0, salva.detectadas());
         assertEquals(2, tentativas(rodada));
+    }
+
+    @Test
+    void admissaoConfirmaRodadaAntesDoTrabalhadorEIndependeDaTransacaoDoChamador() throws Exception {
+        var processo = new ProcessoMonitorado(UUID.randomUUID(), DONO, new NumeroProcesso("00000000020264010000"),
+                Tribunal.TRF1, Set.of(), "", false);
+        processos.salvar(processo);
+        when(((VerificarConectividadeGateway) gateway).verificar(any(), any())).thenAnswer(i -> {
+            assertFalse(TransactionSynchronizationManager.isActualTransactionActive());
+            assertEquals(0, jdbc.sql("SELECT count(*) FROM rodada WHERE executor_id = ?")
+                    .param(EXECUTOR.valor()).query(Integer.class).single());
+            return StatusConsulta.PROCESSO_INVALIDO;
+        });
+        var entrou = new CountDownLatch(1);
+        var liberar = new CountDownLatch(1);
+        when(gateway.consultarProcesso(any(), any(URI.class), any(), any())).thenAnswer(i -> {
+            assertFalse(TransactionSynchronizationManager.isActualTransactionActive());
+            assertEquals(1, jdbc.sql("SELECT count(*) FROM rodada WHERE executor_id = ?")
+                    .param(EXECUTOR.valor()).query(Integer.class).single());
+            entrou.countDown();
+            assertTrue(liberar.await(15, TimeUnit.SECONDS));
+            return new RespostaConsultaOrigem(i.getArgument(0), StatusConsulta.ENCONTRADO, List.of(), null);
+        });
+        var admitida = new AtomicReference<Rodada>();
+        try {
+            new TransactionTemplate(transactions).executeWithoutResult(tx -> {
+                admitida.set(admissao.iniciar(DONO, EXECUTOR, Rodada.Escopo.PROCESSO, null, null,
+                        List.of(processo.id()), new JanelaExibicao(0), credenciais(EXECUTOR)));
+                assertTrue(TransactionSynchronizationManager.isActualTransactionActive());
+                tx.setRollbackOnly();
+            });
+            assertTrue(entrou.await(10, TimeUnit.SECONDS));
+            assertEquals(EstadoExecucao.EM_ANDAMENTO, ler(admitida.get()).estado());
+            assertThrows(IllegalStateException.class, () -> admissao.iniciar(DONO, EXECUTOR,
+                    Rodada.Escopo.PROCESSO, null, null, List.of(processo.id()), new JanelaExibicao(0), credenciais(EXECUTOR)));
+        } finally {
+            liberar.countDown();
+            if (admitida.get() != null) {
+                await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
+                    assertEquals(EstadoExecucao.CONCLUIDA, ler(admitida.get()).estado());
+                    try (var reserva = credenciaisJobs.reservar(UUID.randomUUID(), EXECUTOR, credenciais(EXECUTOR))) {
+                        assertEquals(EXECUTOR, reserva.credenciais().login());
+                    }
+                });
+            }
+        }
+        assertEquals(2, tentativas(admitida.get()));
+        assertEquals(0, admitida.get().detectadas());
+        verify((VerificarConectividadeGateway) gateway, times(2)).verificar(any(), any());
+        verify(gateway, times(2)).consultarProcesso(any(), any(URI.class), any(), any());
     }
 
     private Rodada novaRodada(IdConsultante executorId, int quantidade) {
