@@ -50,13 +50,13 @@ class PjeTransportTest {
         if (httpClient != null) httpClient.close();
         var endpoint = URI.create(url("/soap"));
         var properties = new PjeProperties(new PjeProperties.Endpoints(endpoint, endpoint, endpoint, endpoint),
-                Duration.ofSeconds(1), readTimeout, callTimeout);
+                Duration.ofSeconds(1), readTimeout, callTimeout, "00000000000000000000");
         var config = new SoapConfig();
         httpClient = config.pjeHttpClient(properties);
         var factory = config.pjeSoapMessageFactory();
         factory.afterPropertiesSet();
         template = config.webServiceTemplate(new WebServiceTemplateBuilder(), properties, httpClient, factory, dnsExecutor);
-        client = new PjeSoapClient(template, new PjeRequestWriter(), new PjeResponseMapper(), new ResolverEndpointPje(properties));
+        client = new PjeSoapClient(template, new PjeRequestWriter(), new PjeResponseMapper(), new ResolverEndpointPje(properties), properties);
     }
 
     @AfterEach

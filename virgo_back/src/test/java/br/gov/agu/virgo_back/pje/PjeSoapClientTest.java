@@ -22,11 +22,12 @@ import static org.mockito.Mockito.*;
 
 class PjeSoapClientTest {
     private final WebServiceTemplate transporte = mock(WebServiceTemplate.class);
-    private final PjeSoapClient cliente = new PjeSoapClient(transporte, new PjeRequestWriter(),
-            new PjeResponseMapper(), new ResolverEndpointPje(new PjeProperties(new PjeProperties.Endpoints(
+    private final PjeProperties properties = new PjeProperties(new PjeProperties.Endpoints(
                     URI.create("https://primeiro.invalid/soap"), URI.create("https://segundo.invalid/soap"),
                     URI.create("https://trf6-primeiro.invalid/soap"), URI.create("https://trf6-segundo.invalid/soap")),
-                    Duration.ofSeconds(5), Duration.ofSeconds(30), Duration.ofSeconds(30))));
+                    Duration.ofSeconds(5), Duration.ofSeconds(30), Duration.ofSeconds(30), "00000000000000000000");
+    private final PjeSoapClient cliente = new PjeSoapClient(transporte, new PjeRequestWriter(),
+            new PjeResponseMapper(), new ResolverEndpointPje(properties), properties);
 
     @ParameterizedTest
     @CsvSource({

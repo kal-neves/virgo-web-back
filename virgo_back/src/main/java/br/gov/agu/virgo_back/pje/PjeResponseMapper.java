@@ -29,6 +29,38 @@ public class PjeResponseMapper {
     private static final DateTimeFormatter DATA_HORA_PJE = DateTimeFormatter.ofPattern("uuuuMMddHHmmss")
             .withResolverStyle(ResolverStyle.STRICT);
 
+    public RespostaConsultaOrigem mapearConectividade(Document documento, OrigemPje origem) {
+        try {
+            Element resposta = documento == null ? null : documento.getDocumentElement();
+            if (resposta == null || !SERVICO.equals(resposta.getNamespaceURI())
+                    || !"consultarProcessoResposta".equals(resposta.getLocalName())) {
+                throw new IllegalArgumentException();
+            }
+            var sucessos = filhos(resposta, TIPOS, "sucesso");
+            var mensagens = filhos(resposta, TIPOS, "mensagem");
+            if (sucessos.size() != 1 || mensagens.size() != 1) throw new IllegalArgumentException();
+            String sucesso = sucessos.getFirst().getTextContent().trim();
+            String mensagem = mensagens.getFirst().getTextContent().trim();
+            if (sucesso.equals("true") && mensagem.equals("Processo consultado com sucesso")) {
+                return new RespostaConsultaOrigem(origem, StatusConsulta.ENCONTRADO, List.of(), null);
+            }
+            if (sucesso.equals("false")) {
+                StatusConsulta status;
+                if (mensagem.matches("Número do processo inválido: .+")) status = StatusConsulta.PROCESSO_INVALIDO;
+                else if (mensagem.matches("Processo de número .+ não encontrado!")) status = StatusConsulta.NAO_ENCONTRADO;
+                else if (mensagem.equals("Erro ao realizar login via MNI. exception invoking: loginFailed")
+                        || mensagem.matches("(?:Erro ao realizar login via MNI\\. )?O usuário '.+' não está corretamente cadastrado no sistema\\.")) {
+                    status = StatusConsulta.ACESSO_NEGADO;
+                } else throw new IllegalArgumentException();
+                return new RespostaConsultaOrigem(origem, status, List.of(), "Resultado da verificacao: " + status);
+            }
+            throw new IllegalArgumentException();
+        } catch (IllegalArgumentException e) {
+            return new RespostaConsultaOrigem(origem, StatusConsulta.RESPOSTA_INVALIDA, List.of(),
+                    "PJe nao confirmou a validade das credenciais");
+        }
+    }
+
     public RespostaConsultaOrigem mapearResposta(Document documento, OrigemPje origem) {
         try {
             Element resposta = documento == null ? null : documento.getDocumentElement();
