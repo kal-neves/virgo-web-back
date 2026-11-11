@@ -25,7 +25,7 @@ class PjeSoapClientTest {
     private final PjeProperties properties = new PjeProperties(new PjeProperties.Endpoints(
                     URI.create("https://primeiro.invalid/soap"), URI.create("https://segundo.invalid/soap"),
                     URI.create("https://trf6-primeiro.invalid/soap"), URI.create("https://trf6-segundo.invalid/soap")),
-                    Duration.ofSeconds(5), Duration.ofSeconds(30), Duration.ofSeconds(30), "00000000000000000000");
+                    Duration.ofSeconds(5), Duration.ofSeconds(30), Duration.ofSeconds(30), "00000000000000000000", Tribunal.TRF1, GrauJurisdicao.PRIMEIRO_GRAU);
     private final PjeSoapClient cliente = new PjeSoapClient(transporte, new PjeRequestWriter(),
             new PjeResponseMapper(), new ResolverEndpointPje(properties), properties);
 

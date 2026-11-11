@@ -2,6 +2,7 @@ package br.gov.agu.virgo_back.pje;
 
 import br.gov.agu.virgo_back.consulta.application.ConsultarProcessoGateway;
 import br.gov.agu.virgo_back.consulta.application.VerificarConectividadeGateway;
+import br.gov.agu.virgo_back.consulta.application.ValidarCredenciaisGateway;
 import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
 import br.gov.agu.virgo_back.consulta.domain.OrigemPje;
@@ -24,13 +25,14 @@ import br.gov.agu.virgo_back.consulta.domain.RespostaConsultaOrigem;
 
 
 @Component
-public class PjeSoapClient implements ConsultarProcessoGateway, VerificarConectividadeGateway {
+public class PjeSoapClient implements ConsultarProcessoGateway, VerificarConectividadeGateway, ValidarCredenciaisGateway {
 
     private final WebServiceTemplate webServiceTemplate;
     private final PjeRequestWriter requestWriter;
     private final PjeResponseMapper responseMapper;
     private final ResolverEndpointPje resolverEndpoint;
     private final NumeroProcesso numeroProva;
+    private final OrigemPje origemAutenticacao;
 
     public PjeSoapClient(WebServiceTemplate webServiceTemplate,
                          PjeRequestWriter requestWriter,
@@ -41,6 +43,17 @@ public class PjeSoapClient implements ConsultarProcessoGateway, VerificarConecti
         this.responseMapper = responseMapper;
         this.resolverEndpoint = resolverEndpoint;
         this.numeroProva = new NumeroProcesso(properties.numeroProva());
+        this.origemAutenticacao = new OrigemPje(properties.tribunalAutenticacao(), properties.grauAutenticacao());
+    }
+
+    @Override
+    public ValidarCredenciaisGateway.Resultado validar(CredenciaisPje credenciais) {
+        return switch (verificar(origemAutenticacao, credenciais)) {
+            case ENCONTRADO, NAO_ENCONTRADO, PROCESSO_INVALIDO -> ValidarCredenciaisGateway.Resultado.VALIDAS;
+            case ACESSO_NEGADO -> ValidarCredenciaisGateway.Resultado.INVALIDAS;
+            case INDISPONIVEL -> ValidarCredenciaisGateway.Resultado.INDISPONIVEL;
+            case RESPOSTA_INVALIDA -> ValidarCredenciaisGateway.Resultado.RESPOSTA_INVALIDA;
+        };
     }
 
     @Override

@@ -2,6 +2,7 @@ package br.gov.agu.virgo_back.consulta.execution;
 
 import br.gov.agu.virgo_back.consulta.application.ConsultarProcessoGateway;
 import br.gov.agu.virgo_back.consulta.application.VerificarConectividadeGateway;
+import br.gov.agu.virgo_back.consulta.application.ValidarCredenciaisGateway;
 import br.gov.agu.virgo_back.consulta.application.ExecutarRodadaService;
 import br.gov.agu.virgo_back.identidade.session.CredenciaisJobStore;
 import br.gov.agu.virgo_back.consulta.domain.*;
@@ -58,7 +59,7 @@ class ExecutorSequencialRodadaTest {
     @Autowired PlatformTransactionManager transactions;
     @Autowired ExecutarRodadaService admissao;
     @Autowired CredenciaisJobStore credenciaisJobs;
-    @MockitoBean(extraInterfaces = VerificarConectividadeGateway.class) ConsultarProcessoGateway gateway;
+    @MockitoBean(extraInterfaces = {VerificarConectividadeGateway.class, ValidarCredenciaisGateway.class}) ConsultarProcessoGateway gateway;
     private int proximoNumero;
 
     @BeforeEach

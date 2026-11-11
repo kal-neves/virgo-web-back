@@ -32,7 +32,7 @@ class PjeConectividadeTest {
     private final URI endpoint = URI.create("https://prova.invalid/soap");
     private final PjeProperties properties = new PjeProperties(
             new PjeProperties.Endpoints(endpoint, endpoint, endpoint, endpoint),
-            Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(3), "00000000000000000000");
+            Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(3), "00000000000000000000", Tribunal.TRF1, GrauJurisdicao.PRIMEIRO_GRAU);
     private final PjeSoapClient cliente = new PjeSoapClient(transporte, new PjeRequestWriter(),
             new PjeResponseMapper(), new ResolverEndpointPje(properties), properties);
 

@@ -3,6 +3,9 @@ package br.gov.agu.virgo_back.pje;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import br.gov.agu.virgo_back.processo.domain.NumeroProcesso;
+import br.gov.agu.virgo_back.processo.domain.Tribunal;
+import br.gov.agu.virgo_back.processo.domain.GrauJurisdicao;
+import java.util.Objects;
 
 import java.net.URI;
 import java.time.Duration;
@@ -12,13 +15,17 @@ public record PjeProperties (Endpoints endpoints,
                              Duration connectTimeout,
                              Duration readTimeout,
                              Duration callTimeout,
-                             @DefaultValue("00000000000000000000") String numeroProva){
+                             @DefaultValue("00000000000000000000") String numeroProva,
+                             @DefaultValue("TRF1") Tribunal tribunalAutenticacao,
+                             @DefaultValue("PRIMEIRO_GRAU") GrauJurisdicao grauAutenticacao){
 
     public PjeProperties {
         validarTimeout(connectTimeout, "connect-timeout");
         validarTimeout(readTimeout, "read-timeout");
         validarTimeout(callTimeout, "call-timeout");
         numeroProva = new NumeroProcesso(numeroProva).valor();
+        Objects.requireNonNull(tribunalAutenticacao);
+        Objects.requireNonNull(grauAutenticacao);
     }
 
     private static void validarTimeout(Duration valor, String nome) {
