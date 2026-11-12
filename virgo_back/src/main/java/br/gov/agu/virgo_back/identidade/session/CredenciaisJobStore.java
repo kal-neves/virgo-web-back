@@ -13,13 +13,18 @@ public class CredenciaisJobStore {
     private final ConcurrentHashMap<IdConsultante, Reserva> reservas = new ConcurrentHashMap<>();
 
     public Reserva reservar(UUID rodadaId, IdConsultante executor, CredenciaisPje credenciais) {
+        return reservar(rodadaId, executor, credenciais, () -> { }, () -> { });
+    }
+
+    Reserva reservar(UUID rodadaId, IdConsultante executor, CredenciaisPje credenciais,
+                     Runnable aoEncerrar, Runnable aoRejeitarCredenciais) {
         Objects.requireNonNull(rodadaId);
         Objects.requireNonNull(executor);
         Objects.requireNonNull(credenciais);
         if (!executor.equals(credenciais.login())) {
             throw new IllegalArgumentException("Credenciais nao pertencem ao executor");
         }
-        var reserva = new Reserva(rodadaId, executor, credenciais);
+        var reserva = new Reserva(rodadaId, executor, credenciais, aoEncerrar, aoRejeitarCredenciais);
         if (reservas.putIfAbsent(executor, reserva) != null) {
             throw new IllegalStateException("Executor ja possui uma rodada reservada");
         }
@@ -30,11 +35,16 @@ public class CredenciaisJobStore {
         private final UUID rodadaId;
         private final IdConsultante executor;
         private CredenciaisPje credenciais;
+        private Runnable aoEncerrar;
+        private Runnable aoRejeitarCredenciais;
 
-        private Reserva(UUID rodadaId, IdConsultante executor, CredenciaisPje credenciais) {
+        private Reserva(UUID rodadaId, IdConsultante executor, CredenciaisPje credenciais,
+                        Runnable aoEncerrar, Runnable aoRejeitarCredenciais) {
             this.rodadaId = rodadaId;
             this.executor = executor;
             this.credenciais = credenciais;
+            this.aoEncerrar = aoEncerrar;
+            this.aoRejeitarCredenciais = aoRejeitarCredenciais;
         }
 
         public UUID rodadaId() {
@@ -46,10 +56,26 @@ public class CredenciaisJobStore {
             return credenciais;
         }
 
+        public void rejeitarCredenciais() {
+            Runnable acao;
+            synchronized (this) {
+                acao = aoRejeitarCredenciais;
+                aoRejeitarCredenciais = null;
+            }
+            if (acao != null) acao.run();
+        }
+
         @Override
-        public synchronized void close() {
-            credenciais = null;
-            reservas.remove(executor, this);
+        public void close() {
+            Runnable acao;
+            synchronized (this) {
+                credenciais = null;
+                acao = aoEncerrar;
+                aoEncerrar = null;
+                aoRejeitarCredenciais = null;
+                reservas.remove(executor, this);
+            }
+            if (acao != null) acao.run();
         }
     }
 }

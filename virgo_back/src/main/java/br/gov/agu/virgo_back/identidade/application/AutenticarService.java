@@ -4,6 +4,8 @@ import br.gov.agu.virgo_back.consulta.application.ValidarCredenciaisGateway;
 import br.gov.agu.virgo_back.identidade.domain.SituacaoUsuario;
 import br.gov.agu.virgo_back.identidade.domain.Usuario;
 import br.gov.agu.virgo_back.identidade.persistence.UsuarioRepository;
+import br.gov.agu.virgo_back.identidade.session.CredenciaisSessaoStore;
+import br.gov.agu.virgo_back.identidade.session.SessaoVirgo;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,11 +18,23 @@ public class AutenticarService {
     private final ValidarCredenciaisGateway gateway;
     private final UsuarioRepository usuarios;
     private final Clock clock;
+    private final CredenciaisSessaoStore sessoes;
 
-    public AutenticarService(ValidarCredenciaisGateway gateway, UsuarioRepository usuarios, Clock clock) {
+    public AutenticarService(ValidarCredenciaisGateway gateway, UsuarioRepository usuarios, Clock clock,
+                            CredenciaisSessaoStore sessoes) {
         this.gateway = gateway;
         this.usuarios = usuarios;
         this.clock = clock;
+        this.sessoes = sessoes;
+    }
+
+    /**
+     * verifica o PJe sem manter a transação do chamador aberta
+     * cria a sessão em memória somente depois de confirmar a identidade ativa
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public SessaoVirgo iniciarSessao(CredenciaisPje credenciais) {
+        return sessoes.criar(autenticar(credenciais), credenciais);
     }
 
     /**
