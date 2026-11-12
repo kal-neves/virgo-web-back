@@ -10,12 +10,12 @@ O VIRGO facilita o acompanhamento de processos importantes, identifica novas mov
 
 ## Tecnologias usadas
 
-Java 25 com Spring Boot 4.1.1 (Backend)
-Spring Web MVC e Bean Validation (API REST e validação de dados)
-Spring Web Services e Apache HttpClient 5 (Integração SOAP e requisições HTTP)
-PostgreSQL, Spring JDBC e Flyway (Banco de dados, persistência e migrações)
-Spring Boot Test e embedded-postgres (Testes)
-Lombok e Spring Boot DevTools (Ferramentas de desenvolvimento)
+- Java 25 com Spring Boot 4.1.1 (Backend)
+- Spring Web MVC e Bean Validation (API REST e validação de dados)
+- Spring Web Services e Apache HttpClient 5 (Integração SOAP e requisições HTTP)
+- PostgreSQL, Spring JDBC e Flyway (Banco de dados, persistência e migrações)
+- Spring Boot Test e embedded-postgres (Testes)
+- Lombok e Spring Boot DevTools (Ferramentas de desenvolvimento)
 
 ---
 

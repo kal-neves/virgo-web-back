@@ -6,6 +6,9 @@ import br.gov.agu.virgo_back.consulta.persistence.RodadaRepository;
 import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
 import br.gov.agu.virgo_back.identidade.domain.IdConsultante;
 import br.gov.agu.virgo_back.identidade.session.CredenciaisJobStore;
+import br.gov.agu.virgo_back.identidade.session.CredenciaisSessaoStore;
+import br.gov.agu.virgo_back.identidade.persistence.UsuarioRepository;
+import br.gov.agu.virgo_back.identidade.domain.SituacaoUsuario;
 import br.gov.agu.virgo_back.pje.ResolverEndpointPje;
 import br.gov.agu.virgo_back.processo.domain.GrauJurisdicao;
 import br.gov.agu.virgo_back.processo.persistence.ProcessoMonitoradoRepository;
@@ -39,20 +42,24 @@ public class ExecutarRodadaService {
     private final Clock clock;
     private final TransactionTemplate transacao;
     private final ExecutorService trabalhadores;
+    private final CredenciaisSessaoStore sessoes;
+    private final UsuarioRepository usuarios;
 
     @Autowired
     public ExecutarRodadaService(RodadaRepository rodadas, ProcessoMonitoradoRepository processos,
                                  CredenciaisJobStore credenciaisJobs, VerificarConectividadeGateway conectividade,
                                  ResolverEndpointPje endpoints, ExecutorSequencialRodada executor,
-                                 Clock clock, PlatformTransactionManager transacoes) {
+                                 Clock clock, PlatformTransactionManager transacoes,
+                                 CredenciaisSessaoStore sessoes, UsuarioRepository usuarios) {
         this(rodadas, processos, credenciaisJobs, conectividade, endpoints, executor, clock,
-                transacoes, Executors.newVirtualThreadPerTaskExecutor());
+                transacoes, sessoes, usuarios, Executors.newVirtualThreadPerTaskExecutor());
     }
 
     ExecutarRodadaService(RodadaRepository rodadas, ProcessoMonitoradoRepository processos,
                           CredenciaisJobStore credenciaisJobs, VerificarConectividadeGateway conectividade,
                           ResolverEndpointPje endpoints, ExecutorSequencialRodada executor,
-                          Clock clock, PlatformTransactionManager transacoes, ExecutorService trabalhadores) {
+                          Clock clock, PlatformTransactionManager transacoes, CredenciaisSessaoStore sessoes,
+                          UsuarioRepository usuarios, ExecutorService trabalhadores) {
         this.rodadas = rodadas;
         this.processos = processos;
         this.credenciaisJobs = credenciaisJobs;
@@ -62,6 +69,33 @@ public class ExecutarRodadaService {
         this.clock = clock;
         this.transacao = new TransactionTemplate(transacoes);
         this.trabalhadores = trabalhadores;
+        this.sessoes = sessoes;
+        this.usuarios = usuarios;
+    }
+
+    /**
+     * deriva o executor da sessão e confere a situação e o cadastro atuais
+     * mantém o preflight fora de transações e preserva a reserva até o fim do trabalho
+     * o chamador ainda deve verificar a permissão sobre a seleção do proprietário
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public Rodada iniciar(IdConsultante proprietario, UUID sessaoId, Rodada.Escopo escopo,
+                         @Nullable UUID listaId, @Nullable String nomeLista, List<UUID> processoIds,
+                         JanelaExibicao janela) {
+        var reserva = sessoes.reservarJob(sessaoId, UUID.randomUUID(), credenciaisJobs);
+        try {
+            var usuario = usuarios.buscarPorId(reserva.credenciais().login())
+                    .orElseThrow(() -> new SecurityException("Usuario inexistente"));
+            if (usuario.situacao() != SituacaoUsuario.ATIVO) {
+                sessoes.encerrar(sessaoId);
+                throw new SecurityException("Usuario inativo");
+            }
+            if (!usuario.cadastroCompleto()) throw new SecurityException("Cadastro incompleto");
+        } catch (RuntimeException | Error falha) {
+            reserva.close();
+            throw falha;
+        }
+        return admitir(proprietario, escopo, listaId, nomeLista, processoIds, janela, reserva);
     }
 
     /**
@@ -73,17 +107,24 @@ public class ExecutarRodadaService {
     public Rodada iniciar(IdConsultante proprietario, IdConsultante executorId, Rodada.Escopo escopo,
                          @Nullable UUID listaId, @Nullable String nomeLista, List<UUID> processoIds,
                          JanelaExibicao janela, CredenciaisPje credenciais) {
-        Objects.requireNonNull(proprietario);
-        Objects.requireNonNull(escopo);
-        Objects.requireNonNull(janela);
-        var ids = List.copyOf(processoIds);
-        if (ids.isEmpty() || new HashSet<>(ids).size() != ids.size()) {
-            throw new IllegalArgumentException("Selecao exige processos sem repeticoes");
-        }
-        UUID rodadaId = UUID.randomUUID();
-        var reserva = credenciaisJobs.reservar(rodadaId, executorId, credenciais);
+        var reserva = credenciaisJobs.reservar(UUID.randomUUID(), executorId, credenciais);
+        return admitir(proprietario, escopo, listaId, nomeLista, processoIds, janela, reserva);
+    }
+
+    private Rodada admitir(IdConsultante proprietario, Rodada.Escopo escopo, @Nullable UUID listaId,
+                           @Nullable String nomeLista, List<UUID> processoIds, JanelaExibicao janela,
+                           CredenciaisJobStore.Reserva reserva) {
         boolean entregue = false;
         try {
+            Objects.requireNonNull(proprietario);
+            Objects.requireNonNull(escopo);
+            Objects.requireNonNull(janela);
+            var ids = List.copyOf(processoIds);
+            if (ids.isEmpty() || new HashSet<>(ids).size() != ids.size()) {
+                throw new IllegalArgumentException("Selecao exige processos sem repeticoes");
+            }
+            UUID rodadaId = reserva.rodadaId();
+            var executorId = reserva.credenciais().login();
             var instante = clock.instant();
             var itens = new ArrayList<ItemRodada>();
             Map<OrigemPje, URI> destinos = new LinkedHashMap<>();
@@ -107,6 +148,7 @@ public class ExecutarRodadaService {
                     null, null, itens);
             for (var origem : destinos.keySet()) {
                 var status = conectividade.verificar(origem, reserva.credenciais());
+                if (status == StatusConsulta.ACESSO_NEGADO) reserva.rejeitarCredenciais();
                 if (status != StatusConsulta.ENCONTRADO && status != StatusConsulta.NAO_ENCONTRADO
                         && status != StatusConsulta.PROCESSO_INVALIDO) {
                     throw new IllegalStateException("PJe nao confirmou acesso a " + origem + ": " + status);
@@ -129,7 +171,8 @@ public class ExecutarRodadaService {
     private void executar(Rodada rodada, CredenciaisJobStore.Reserva reserva) {
         try (reserva) {
             try {
-                if (!executor.executar(rodada.proprietario(), rodada.executor(), rodada.id(), reserva.credenciais())) {
+                if (!executor.executar(rodada.proprietario(), rodada.executor(), rodada.id(), reserva.credenciais(),
+                        reserva::rejeitarCredenciais)) {
                     interromper(rodada);
                 }
             } catch (RuntimeException | Error falha) {

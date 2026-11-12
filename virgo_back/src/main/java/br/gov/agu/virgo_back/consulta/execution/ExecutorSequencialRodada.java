@@ -42,6 +42,18 @@ public class ExecutorSequencialRodada {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public boolean executar(IdConsultante proprietario, IdConsultante executor, UUID rodadaId,
                             CredenciaisPje credenciais) {
+        return executar(proprietario, executor, rodadaId, credenciais, () -> { });
+    }
+
+    /**
+     * mantém as chamadas ao PJe fora da transação do chamador
+     * avisa o responsável pela sessão quando o PJe rejeita as credenciais
+     * preserva os graus já confirmados antes de interromper a rodada
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public boolean executar(IdConsultante proprietario, IdConsultante executor, UUID rodadaId,
+                            CredenciaisPje credenciais, Runnable credenciaisRejeitadas) {
+        Objects.requireNonNull(credenciaisRejeitadas);
         Objects.requireNonNull(proprietario);
         Objects.requireNonNull(executor);
         Objects.requireNonNull(rodadaId);
@@ -74,6 +86,7 @@ public class ExecutorSequencialRodada {
                     }
                     var resposta = consultaService.consultarGrauPlanejado(rodada, item, consulta, inicio, credenciais);
                     if (resposta.status() == StatusConsulta.ACESSO_NEGADO) {
+                        credenciaisRejeitadas.run();
                         if (!cancelarSeSolicitado(rodada)
                                 && !rodadas.interromper(proprietario, executor, rodadaId, clock.instant())) {
                             throw new IllegalStateException("Rodada nao pode ser interrompida");
