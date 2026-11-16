@@ -2,6 +2,8 @@ package br.gov.agu.virgo_back.identidade.application;
 
 import br.gov.agu.virgo_back.identidade.domain.*;
 import br.gov.agu.virgo_back.identidade.persistence.UsuarioRepository;
+import br.gov.agu.virgo_back.identidade.session.CredenciaisSessaoStore;
+import br.gov.agu.virgo_back.identidade.session.CredenciaisJobStore;
 import br.gov.agu.virgo_back.support.PostgresTestConfig;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -47,6 +49,7 @@ class AutenticarServiceIntegrationTest {
     @Autowired UsuarioRepository usuarios;
     @Autowired JdbcClient jdbc;
     @Autowired PlatformTransactionManager transacoes;
+    @Autowired CredenciaisSessaoStore sessoes;
     @MockitoBean WebServiceTemplate transporte;
 
     @AfterEach
@@ -163,5 +166,29 @@ class AutenticarServiceIntegrationTest {
                     response.setNode(factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml))));
                     return true;
                 });
+    }
+
+    @Test
+    void loginCriaSessaoEmMemoriaSemIniciarConsultas() {
+        responder("true", "Processo consultado com sucesso");
+        var sessao = new TransactionTemplate(transacoes).execute(tx -> {
+            var criada = service.iniciarSessao(CREDENCIAIS);
+            assertTrue(TransactionSynchronizationManager.isActualTransactionActive());
+            tx.setRollbackOnly();
+            return criada;
+        });
+        assertNotNull(sessao);
+        try {
+            assertEquals(ID, sessao.usuario());
+            assertEquals(0, sessao.consultasAtivas());
+            assertFalse(usuarios.buscarPorId(ID).orElseThrow().cadastroCompleto());
+            assertEquals(sessao, sessoes.buscar(sessao.id()).orElseThrow());
+            try (var reserva = sessoes.reservarJob(sessao.id(), java.util.UUID.randomUUID(), new CredenciaisJobStore())) {
+                assertEquals(CREDENCIAIS, reserva.credenciais());
+            }
+            assertEquals(0, jdbc.sql("SELECT count(*) FROM rodada WHERE executor_id = ?").param(ID.valor()).query(Integer.class).single());
+        } finally {
+            sessoes.encerrar(sessao.id());
+        }
     }
 }

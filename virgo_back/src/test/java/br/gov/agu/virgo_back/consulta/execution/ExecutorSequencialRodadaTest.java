@@ -146,9 +146,11 @@ class ExecutorSequencialRodadaTest {
     @Test
     void acessoNegadoInterrompeRodadaDepoisDeRegistrarFalha() {
         var rodada = novaRodada(EXECUTOR, 2);
+        var rejeicoes = new AtomicInteger();
         when(gateway.consultarProcesso(any(), any(URI.class), any(), any())).thenAnswer(i ->
                 resposta(i.getArgument(0), StatusConsulta.ACESSO_NEGADO, ""));
-        assertTrue(executar(rodada));
+        assertTrue(executor.executar(DONO, EXECUTOR, rodada.id(), credenciais(EXECUTOR), rejeicoes::incrementAndGet));
+        assertEquals(1, rejeicoes.get());
         var salva = ler(rodada);
         assertEquals(EstadoExecucao.INTERROMPIDA, salva.estado());
         assertEquals(StatusConsulta.ACESSO_NEGADO, salva.itens().getFirst().consultas().getFirst().status());
@@ -268,7 +270,7 @@ class ExecutorSequencialRodadaTest {
         var processo = new ProcessoMonitorado(UUID.randomUUID(), DONO, new NumeroProcesso("00000000020264010000"),
                 Tribunal.TRF1, Set.of(), "", false);
         processos.salvar(processo);
-        when(((VerificarConectividadeGateway) gateway).verificar(any(), any())).thenAnswer(i -> {
+        when(((VerificarConectividadeGateway) gateway).verificar(any(), any())).thenAnswer(_ -> {
             assertFalse(TransactionSynchronizationManager.isActualTransactionActive());
             assertEquals(0, jdbc.sql("SELECT count(*) FROM rodada WHERE executor_id = ?")
                     .param(EXECUTOR.valor()).query(Integer.class).single());

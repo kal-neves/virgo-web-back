@@ -154,7 +154,7 @@ public class ExecutarRodadaService {
                     throw new IllegalStateException("PJe nao confirmou acesso a " + origem + ": " + status);
                 }
             }
-            transacao.executeWithoutResult(ignorada -> rodadas.criar(rodada, destinos));
+            transacao.executeWithoutResult(_ -> rodadas.criar(rodada, destinos));
             try {
                 trabalhadores.execute(() -> executar(rodada, reserva));
                 entregue = true;

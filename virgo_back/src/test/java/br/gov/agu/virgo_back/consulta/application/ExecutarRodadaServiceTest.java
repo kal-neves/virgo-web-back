@@ -6,6 +6,11 @@ import br.gov.agu.virgo_back.consulta.persistence.RodadaRepository;
 import br.gov.agu.virgo_back.identidade.application.CredenciaisPje;
 import br.gov.agu.virgo_back.identidade.domain.IdConsultante;
 import br.gov.agu.virgo_back.identidade.session.CredenciaisJobStore;
+import br.gov.agu.virgo_back.identidade.session.CredenciaisSessaoStore;
+import br.gov.agu.virgo_back.identidade.persistence.UsuarioRepository;
+import br.gov.agu.virgo_back.identidade.domain.Usuario;
+import br.gov.agu.virgo_back.identidade.domain.Perfil;
+import br.gov.agu.virgo_back.identidade.domain.SituacaoUsuario;
 import br.gov.agu.virgo_back.pje.ResolverEndpointPje;
 import br.gov.agu.virgo_back.processo.domain.*;
 import br.gov.agu.virgo_back.processo.persistence.ProcessoMonitoradoRepository;
@@ -42,6 +47,8 @@ class ExecutarRodadaServiceTest {
     private final PlatformTransactionManager transacoes = mock(PlatformTransactionManager.class);
     private final ExecutorService trabalhadores = mock(ExecutorService.class);
     private final Clock clock = Clock.fixed(Instant.parse("2026-11-06T02:00:00Z"), ZoneId.of("America/Sao_Paulo"));
+    private final CredenciaisSessaoStore sessoes = new CredenciaisSessaoStore(clock);
+    private final UsuarioRepository usuarios = mock(UsuarioRepository.class);
     private final AtomicReference<Runnable> trabalho = new AtomicReference<>();
     private ExecutarRodadaService service;
 
@@ -51,7 +58,7 @@ class ExecutarRodadaServiceTest {
         when(prova.verificar(any(), any())).thenReturn(StatusConsulta.NAO_ENCONTRADO);
         when(endpoints.resolver(any())).thenAnswer(i -> URI.create("https://pje.invalid/" + ((OrigemPje) i.getArgument(0)).grau()));
         when(transacoes.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
-        when(executor.executar(any(), any(), any(), any())).thenReturn(true);
+        when(executor.executar(any(), any(), any(), any(), any())).thenReturn(true);
         doAnswer(i -> { trabalho.set(i.getArgument(0)); return null; }).when(trabalhadores).execute(any());
         service = criarService(trabalhadores);
     }
@@ -73,7 +80,7 @@ class ExecutarRodadaServiceTest {
         ordem.verify(trabalhadores).execute(any());
         verifyNoInteractions(executor);
         trabalho.get().run();
-        verify(executor).executar(dono, executorId, rodada.id(), credenciais);
+        verify(executor).executar(eq(dono), eq(executorId), eq(rodada.id()), eq(credenciais), any(Runnable.class));
         assertReservaLiberada();
     }
 
@@ -153,7 +160,7 @@ class ExecutarRodadaServiceTest {
     @Test
     void falhaNoTrabalhadorLiberaCredenciaisMesmoSeBancoFalhar() {
         var rodada = iniciar();
-        when(executor.executar(any(), any(), any(), any())).thenThrow(new IllegalStateException("senha-ficticia"));
+        when(executor.executar(any(), any(), any(), any(), any())).thenThrow(new IllegalStateException("senha-ficticia"));
         when(rodadas.interromper(any(), any(), any(), any())).thenThrow(new IllegalStateException("banco"));
         assertDoesNotThrow(() -> trabalho.get().run());
         verify(rodadas).interromper(dono, executorId, rodada.id(), clock.instant());
@@ -188,7 +195,7 @@ class ExecutarRodadaServiceTest {
     void retornaAntesDoFimEPermiteOutroExecutorAoMesmoTempo() throws Exception {
         var entraram = new CountDownLatch(2);
         var liberar = new CountDownLatch(1);
-        when(executor.executar(any(), any(), any(), any())).thenAnswer(i -> {
+        when(executor.executar(any(), any(), any(), any(), any())).thenAnswer(_ -> {
             entraram.countDown();
             assertTrue(liberar.await(10, TimeUnit.SECONDS));
             return true;
@@ -208,8 +215,114 @@ class ExecutarRodadaServiceTest {
         assertReservaLiberada();
     }
 
+    @Test
+    void sessaoForneceCredenciaisEAAdmissaoSobreviveAoLogout() {
+        var sessao = criarSessao();
+        var rodada = iniciarComSessao(sessao);
+        assertEquals(1, sessoes.buscar(sessao).orElseThrow().consultasAtivas());
+        sessoes.encerrar(sessao);
+        trabalho.get().run();
+        verify(executor).executar(eq(dono), eq(executorId), eq(rodada.id()), eq(credenciais), any(Runnable.class));
+        assertTrue(sessoes.buscar(sessao).isEmpty());
+        assertReservaLiberada();
+    }
+
+    @Test
+    void terminoMantemSessaoAptaParaOutraRodada() {
+        var sessao = criarSessao();
+        iniciarComSessao(sessao);
+        trabalho.get().run();
+        assertEquals(0, sessoes.buscar(sessao).orElseThrow().consultasAtivas());
+        iniciarComSessao(sessao);
+        trabalho.get().run();
+        assertReservaLiberada();
+    }
+
+    @Test
+    void cadastroIncompletoNaoConsultaPje() {
+        var sessao = criarSessao();
+        when(usuarios.buscarPorId(executorId)).thenReturn(Optional.of(new Usuario(executorId, null, null, null,
+                Perfil.COMUM, SituacaoUsuario.ATIVO, false, clock.instant())));
+        assertThrows(SecurityException.class, () -> iniciarComSessao(sessao));
+        verifyNoInteractions(prova, rodadas, trabalhadores);
+        assertEquals(0, sessoes.buscar(sessao).orElseThrow().consultasAtivas());
+        assertReservaLiberada();
+    }
+
+    @Test
+    void inativacaoAtualImpedeNovaAdmissao() {
+        var sessao = criarSessao();
+        when(usuarios.buscarPorId(executorId)).thenReturn(Optional.of(new Usuario(executorId, "Maria Silva", "m@example.test", "123",
+                Perfil.COMUM, SituacaoUsuario.INATIVO, true, clock.instant())));
+        assertThrows(SecurityException.class, () -> iniciarComSessao(sessao));
+        assertTrue(sessoes.buscar(sessao).isEmpty());
+        verifyNoInteractions(prova, rodadas, trabalhadores);
+        assertReservaLiberada();
+    }
+
+    @Test
+    void inativacaoAposAdmissaoNaoInterrompeTrabalho() {
+        var sessao = criarSessao();
+        iniciarComSessao(sessao);
+        when(usuarios.buscarPorId(executorId)).thenReturn(Optional.of(new Usuario(executorId, "Maria Silva", "m@example.test", "123",
+                Perfil.COMUM, SituacaoUsuario.INATIVO, true, clock.instant())));
+        trabalho.get().run();
+        verify(executor).executar(eq(dono), eq(executorId), any(), eq(credenciais), any());
+        assertThrows(SecurityException.class, () -> iniciarComSessao(sessao));
+        assertReservaLiberada();
+    }
+
+    @Test
+    void falhaDePreflightLiberaAtividadeMasSomenteRejeicaoDeCredenciaisEncerraSessao() {
+        var sessao = criarSessao();
+        when(prova.verificar(any(), any())).thenReturn(StatusConsulta.INDISPONIVEL);
+        assertThrows(IllegalStateException.class, () -> iniciarComSessao(sessao));
+        assertEquals(0, sessoes.buscar(sessao).orElseThrow().consultasAtivas());
+        when(prova.verificar(any(), any())).thenReturn(StatusConsulta.ACESSO_NEGADO);
+        assertThrows(IllegalStateException.class, () -> iniciarComSessao(sessao));
+        assertTrue(sessoes.buscar(sessao).isEmpty());
+        assertReservaLiberada();
+    }
+
+    @Test
+    void credenciaisRejeitadasDuranteExecucaoExigemNovaSessao() {
+        var sessao = criarSessao();
+        when(executor.executar(any(), any(), any(), any(), any())).thenAnswer(i -> {
+            ((Runnable) i.getArgument(4)).run();
+            return true;
+        });
+        iniciarComSessao(sessao);
+        trabalho.get().run();
+        assertTrue(sessoes.buscar(sessao).isEmpty());
+        assertThrows(SecurityException.class, () -> iniciarComSessao(sessao));
+        assertReservaLiberada();
+    }
+
+    @Test
+    void falhaDeDispatchOuValidacaoNaoDeixaAtividadePresa() {
+        var sessao = criarSessao();
+        assertThrows(IllegalArgumentException.class, () -> service.iniciar(dono, sessao, Rodada.Escopo.PROCESSO,
+                null, null, List.of(), new JanelaExibicao(0)));
+        assertEquals(0, sessoes.buscar(sessao).orElseThrow().consultasAtivas());
+        doThrow(new RejectedExecutionException()).when(trabalhadores).execute(any());
+        assertThrows(RejectedExecutionException.class, () -> iniciarComSessao(sessao));
+        assertEquals(0, sessoes.buscar(sessao).orElseThrow().consultasAtivas());
+        assertReservaLiberada();
+    }
+
+    private UUID criarSessao() {
+        var usuario = new Usuario(executorId, "Maria Silva", "m@example.test", "123", Perfil.COMUM,
+                SituacaoUsuario.ATIVO, true, clock.instant());
+        when(usuarios.buscarPorId(executorId)).thenReturn(Optional.of(usuario));
+        return sessoes.criar(usuario, credenciais).id();
+    }
+
+    private Rodada iniciarComSessao(UUID sessao) {
+        return service.iniciar(dono, sessao, Rodada.Escopo.PROCESSO, null, null, List.of(processo.id()), new JanelaExibicao(0));
+    }
+
     private ExecutarRodadaService criarService(ExecutorService pool) {
-        return new ExecutarRodadaService(rodadas, processos, store, prova, endpoints, executor, clock, transacoes, pool);
+        return new ExecutarRodadaService(rodadas, processos, store, prova, endpoints, executor, clock, transacoes, sessoes, usuarios, pool);
     }
 
     private Rodada iniciar() {
