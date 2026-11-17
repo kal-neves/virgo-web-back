@@ -3,24 +3,9 @@
 Testes com JUnit Jupiter e suporte do Spring Boot, organizados conforme os pacotes
 de produção. A suíte local usa dados sintéticos e não acessa o PJe.
 
-## Organização
-
-| Pacote | Cobertura |
-| --- | --- |
-| `consulta/domain` | Estados, resultados e regras de exibição. |
-| `consulta/application` e `consulta/execution` | Consultas, execução sequencial e cancelamento com gateway simulado. |
-| `consulta/persistence` | Migrações e persistência de rodadas, itens e tentativas. |
-| `processo` | Números CNJ, processos monitorados e sua persistência. |
-| `movimentacao` | Detecção de novidades e registro do histórico. |
-| `identidade` | Identificação do usuário e tratamento de credenciais. |
-| `pje` | XML, cliente SOAP e transporte; integração real habilitada separadamente. |
-
-`VirgoBackApplicationTests` verifica o carregamento do contexto Spring.
-`PjeTransportTest` usa um servidor HTTP local, sem consultar o PJe.
-
 ## Ambiente
 
-- Use JDK 25 e o Maven Wrapper incluído no módulo `virgo_back`.
+- Use o JDK definido em [pom.xml](../../pom.xml) e o Maven Wrapper incluído no módulo `virgo_back`.
 - O Maven precisa obter as dependências, incluindo os binários do PostgreSQL de teste.
 - Os testes de persistência e contexto iniciam um PostgreSQL temporário em porta
   livre via `embedded-postgres`. Não exigem Docker, banco previamente criado nem
